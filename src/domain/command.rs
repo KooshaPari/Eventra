@@ -27,8 +27,22 @@ impl Command {
 }
 
 /// Command metadata
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandMetadata {
     pub user_id: Option<String>,
     pub trace_id: Option<String>,
+}
+
+impl Default for CommandMetadata {
+    fn default() -> Self {
+        Self {
+            user_id: None,
+            trace_id: None,
+        }
+    }
+}
+
+/// Command handler trait
+pub trait CommandHandler<C: Send + 'static>: Send + Sync {
+    fn handle(&self, command: C) -> Result<(), super::error::EventError>;
 }
