@@ -2,9 +2,8 @@
 
 use std::collections::HashMap;
 use parking_lot::RwLock;
-use async_trait::async_trait;
 
-use crate::domain::{Event, EventError, EventHandler, EventStore};
+use crate::domain::{Event, EventError, EventStore};
 
 /// Projection definition
 pub trait Projection: Send + Sync {
@@ -39,9 +38,8 @@ impl ProjectionRunner {
 
     pub fn register<P: Projection + 'static>(&self, projection: P) {
         let name = projection.name().to_string();
-        let handles = projection.handles().to_vec();
         drop(self.projections.write().insert(name.clone(), Box::new(projection)));
-        drop(self.state.write().insert(name, ProjectionState {
+        drop(self.state.write().insert(name.clone(), ProjectionState {
             name,
             position: 0,
             last_updated: chrono::Utc::now(),
@@ -50,11 +48,11 @@ impl ProjectionRunner {
 
     pub fn run(&self) -> Result<(), EventError> {
         let events = self.event_store.get_events_since(chrono::Utc::now())?;
-        let projections = self.projections.read();
+        let mut projections = self.projections.write();
         let mut state = self.state.write();
 
         for event in events {
-            for (_, projection) in projections.iter() {
+            for (_, projection) in projections.iter_mut() {
                 if projection.handles().contains(&event.metadata.event_type) {
                     if let Some(state) = state.get_mut(projection.name()) {
                         projection.apply(&event)?;

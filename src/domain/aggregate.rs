@@ -1,7 +1,6 @@
 //! Aggregate - Domain Entity
 
 use std::collections::VecDeque;
-use serde::{Deserialize, Serialize};
 
 use super::{Event, error::EventError};
 
@@ -12,6 +11,15 @@ pub trait Aggregate: Send {
     fn uncommitted_events(&self) -> Vec<Event>;
     fn mark_events_committed(&mut self);
     fn apply(&mut self, event: &Event) -> Result<(), EventError>;
+    /// Rehydrate an aggregate from its historical event stream.
+    fn load_from_events(&mut self, events: &[Event]) -> Result<(), EventError> {
+        for event in events {
+            self.apply(event)?;
+        }
+        Ok(())
+    }
+    /// Execute a command, producing the events that result from it.
+    fn execute(&mut self, command: super::Command) -> Result<Vec<Event>, EventError>;
 }
 
 /// Base aggregate implementation
@@ -49,6 +57,12 @@ impl BaseAggregate {
     pub fn add_event(&mut self, event: Event) {
         self.version += 1;
         self.uncommitted.push_back(event);
+    }
+
+    pub fn apply(&mut self, event: &Event) -> Result<(), EventError> {
+        self.version += 1;
+        self.uncommitted.push_back(event.clone());
+        Ok(())
     }
 
     pub fn load_from_events(&mut self, events: &[Event]) -> Result<(), EventError> {

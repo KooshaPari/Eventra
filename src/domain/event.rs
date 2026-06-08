@@ -78,9 +78,16 @@ pub trait EventBus: Send + Sync {
 }
 
 /// Event handler trait
-pub trait EventHandler: Send + Sync {
+pub trait EventHandler: Send + Sync + EventHandlerClone {
     fn handle(&self, event: &Event) -> Result<(), EventError>;
     fn event_types(&self) -> Vec<String>;
+}
+
+/// Cloning helper for `EventHandler` trait objects. Supertrait of
+/// [`EventHandler`] so that `dyn EventHandler` values can be cloned
+/// through a single virtual call.
+pub trait EventHandlerClone {
+    fn clone_boxed(&self) -> Box<dyn EventHandler>;
 }
 
 /// Event store trait - secondary port

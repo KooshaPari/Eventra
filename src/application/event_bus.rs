@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;
 
-use crate::domain::{Event, EventBus, EventError, EventHandler};
+use crate::domain::{Event, EventBus, EventError, EventHandler, EventHandlerClone};
 
 /// Simple in-memory event bus
 pub struct InMemoryEventBus {
@@ -58,18 +58,8 @@ impl Clone for Box<dyn EventHandler> {
     }
 }
 
-pub trait EventHandlerClone {
-    fn clone_boxed(&self) -> Box<dyn EventHandler>;
-}
-
-impl<T: EventHandler + Clone> EventHandlerClone for T {
+impl<T: EventHandler + Clone + 'static> EventHandlerClone for T {
     fn clone_boxed(&self) -> Box<dyn EventHandler> {
         Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<dyn EventHandler> {
-    fn clone(&self) -> Box<dyn EventHandler> {
-        self.clone_boxed()
     }
 }
