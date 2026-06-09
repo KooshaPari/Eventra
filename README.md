@@ -1,5 +1,8 @@
 # eventkit - Event-Driven Architecture Framework
 
+> **Work state:** ACTIVE · **Progress:** `█████░░░░░ 50%`
+> Event-driven Rust framework: CQRS + Event Sourcing with EventStore and projection support. Hexagonal architecture; adapters for in-memory, Postgres, Kafka, RabbitMQ. · updated 2026-06-08
+
 CQRS and Event Sourcing with EventStore and projection support.
 
 ## Features
