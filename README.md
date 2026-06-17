@@ -1,3 +1,5 @@
+<!-- Work-state: alpha — [##--------] 25% — ports defined, in-mem store + bus, no persistence, no tests -->
+
 <!-- AI-DD-META:START -->
 <!-- This repository is planned, maintained, and managed by AI Agents only. -->
 <!-- Slop issues are expected and intentionally present as part of an HITL-less -->
