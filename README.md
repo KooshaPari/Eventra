@@ -1,3 +1,5 @@
+<!-- Work-state: alpha — [##--------] 25% — ports defined, in-mem store + bus, no persistence, no tests -->
+
 # eventkit - Event-Driven Architecture Framework
 
 CQRS and Event Sourcing with EventStore and projection support.
