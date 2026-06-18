@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 description = "Event-driven architecture framework with CQRS and Event Sourcing"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/KooshaPari/PhenoProc"
+documentation = "https://docs.rs/eventkit"
+keywords = ["phenotype", "pheno-proc"]
+categories = ["development-tools"]
+authors = ["kooshapari"]
 
 [workspace]
 
