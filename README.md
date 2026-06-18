@@ -22,7 +22,9 @@
 # eventkit - Event-Driven Architecture Framework
 
 > **Work state:** ACTIVE · **Progress:** `█████░░░░░ 50%`
-> Event-driven Rust framework: CQRS + Event Sourcing with EventStore and projection support. Hexagonal architecture; adapters for in-memory, Postgres, Kafka, RabbitMQ. · updated 2026-06-08
+> Event-driven Rust framework: CQRS + Event Sourcing with EventStore and projection support. Hexagonal architecture; in-memory adapters shipped today; Postgres/Kafka/RabbitMQ adapters planned. · updated 2026-06-18
+
+> **Status:** v0.1.0 — pre-release, in-memory adapters only. Postgres/Kafka/RabbitMQ adapters planned.
 
 CQRS and Event Sourcing with EventStore and projection support.
 
@@ -32,8 +34,6 @@ CQRS and Event Sourcing with EventStore and projection support.
 - **CQRS**: Separate read/write models
 - **Event Store**: Append-only event storage
 - **Projections**: Build read models from events
-- **Snapshots**: Optimize state reconstruction
-- **Upcasting**: Handle event schema evolution
 
 ## Architecture
 
@@ -53,8 +53,8 @@ CQRS and Event Sourcing with EventStore and projection support.
 │  └── ProjectionManager (use case)                          │
 ├─────────────────────────────────────────────────────────────┤
 │  Adapters                                                    │
-│  ├── InMemoryEventStore, PostgresEventStore                  │
-│  ├── KafkaEventBus, RabbitMQEventBus                        │
+│  ├── InMemoryEventStore                                       │
+│  ├── InMemoryEventBus                                         │
 │  └── ProjectionRunner                                       │
 └─────────────────────────────────────────────────────────────┘
 ```
