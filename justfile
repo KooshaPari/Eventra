@@ -15,6 +15,10 @@ build:
 test:
 	cargo test --workspace
 
+# Coverage report (SSOT for how to measure coverage).
+coverage:
+	cargo tarpaulin --workspace
+
 # Lint
 lint:
 	cargo clippy --workspace --all-targets -- -D warnings
