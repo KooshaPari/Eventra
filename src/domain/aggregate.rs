@@ -72,3 +72,31 @@ impl BaseAggregate {
         Ok(())
     }
 }
+
+impl Aggregate for BaseAggregate {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn version(&self) -> u32 {
+        self.version
+    }
+
+    fn uncommitted_events(&self) -> Vec<Event> {
+        self.uncommitted.iter().cloned().collect()
+    }
+
+    fn mark_events_committed(&mut self) {
+        self.uncommitted.clear();
+    }
+
+    fn apply(&mut self, event: &Event) -> Result<(), EventError> {
+        self.version += 1;
+        self.uncommitted.push_back(event.clone());
+        Ok(())
+    }
+
+    fn execute(&mut self, _command: super::Command) -> Result<Vec<Event>, EventError> {
+        Err(EventError::Aggregate("execute not implemented".into()))
+    }
+}

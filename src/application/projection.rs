@@ -46,17 +46,24 @@ impl ProjectionRunner {
         }));
     }
 
+    /// Replay events for every registered projection starting from its saved
+    /// position (or from offset 0 for first-time runs). Each projection tracks
+    /// its own position via [`ProjectionState`].
     pub fn run(&self) -> Result<(), EventError> {
-        let events = self.event_store.get_events_since(chrono::Utc::now())?;
+        let events = self.event_store.get_all_events()?;
         let mut projections = self.projections.write();
         let mut state = self.state.write();
 
-        for event in events {
+        for (idx, event) in events.iter().enumerate() {
             for (_, projection) in projections.iter_mut() {
                 if projection.handles().contains(&event.metadata.event_type) {
                     if let Some(state) = state.get_mut(projection.name()) {
-                        projection.apply(&event)?;
-                        state.position += 1;
+                        let position = idx as u64;
+                        if position < state.position {
+                            continue;
+                        }
+                        projection.apply(event)?;
+                        state.position = position + 1;
                         state.last_updated = chrono::Utc::now();
                     }
                 }
