@@ -1,7 +1,10 @@
 //! Projection System
 
-use std::collections::HashMap;
 use parking_lot::RwLock;
+<<<<<<< HEAD
+=======
+use std::collections::HashMap;
+>>>>>>> 65d9cd6 (feat(eventra): fix aggregate replay and event bus cloning)
 
 use crate::domain::{Event, EventError, EventStore};
 
@@ -38,12 +41,28 @@ impl ProjectionRunner {
 
     pub fn register<P: Projection + 'static>(&self, projection: P) {
         let name = projection.name().to_string();
+<<<<<<< HEAD
         drop(self.projections.write().insert(name.clone(), Box::new(projection)));
         drop(self.state.write().insert(name.clone(), ProjectionState {
             name,
             position: 0,
             last_updated: chrono::Utc::now(),
         }));
+=======
+        drop(
+            self.projections
+                .write()
+                .insert(name.clone(), Box::new(projection)),
+        );
+        drop(self.state.write().insert(
+            name.clone(),
+            ProjectionState {
+                name,
+                position: 0,
+                last_updated: chrono::Utc::now(),
+            },
+        ));
+>>>>>>> 65d9cd6 (feat(eventra): fix aggregate replay and event bus cloning)
     }
 
     pub fn run(&self) -> Result<(), EventError> {
@@ -54,10 +73,10 @@ impl ProjectionRunner {
         for event in events {
             for (_, projection) in projections.iter_mut() {
                 if projection.handles().contains(&event.metadata.event_type) {
-                    if let Some(state) = state.get_mut(projection.name()) {
+                    if let Some(s) = state.get_mut(projection.name()) {
                         projection.apply(&event)?;
-                        state.position += 1;
-                        state.last_updated = chrono::Utc::now();
+                        s.position += 1;
+                        s.last_updated = chrono::Utc::now();
                     }
                 }
             }
