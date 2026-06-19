@@ -1,11 +1,8 @@
 //! Event Store Adapters
 
 use chrono::{DateTime, Utc};
-<<<<<<< HEAD
-=======
 use parking_lot::RwLock;
 use std::collections::HashMap;
->>>>>>> 65d9cd6 (feat(eventra): fix aggregate replay and event bus cloning)
 
 use crate::domain::{Event, EventStore, EventError};
 

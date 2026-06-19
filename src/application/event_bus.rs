@@ -54,17 +54,6 @@ impl EventBus for InMemoryEventBus {
     }
 }
 
-<<<<<<< HEAD
-impl Clone for Box<dyn EventHandler> {
-    fn clone(&self) -> Self {
-        self.clone_boxed()
-    }
-}
-
-impl<T: EventHandler + Clone + 'static> EventHandlerClone for T {
-    fn clone_boxed(&self) -> Box<dyn EventHandler> {
-        Box::new(self.clone())
-=======
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -91,6 +80,12 @@ mod tests {
         }
     }
 
+    impl EventHandlerClone for CountingHandler {
+        fn clone_boxed(&self) -> Box<dyn EventHandler> {
+            Box::new(self.clone())
+        }
+    }
+
     #[test]
     fn subscribe_clones_handler_per_event_type_without_requiring_box_clone() {
         let bus = InMemoryEventBus::new();
@@ -103,6 +98,5 @@ mod tests {
         bus.publish(&event).expect("publish succeeds");
 
         assert_eq!(hits.load(Ordering::SeqCst), 1);
->>>>>>> 65d9cd6 (feat(eventra): fix aggregate replay and event bus cloning)
     }
 }

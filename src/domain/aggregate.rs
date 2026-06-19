@@ -11,24 +11,15 @@ pub trait Aggregate: Send {
     fn uncommitted_events(&self) -> Vec<Event>;
     fn mark_events_committed(&mut self);
     fn apply(&mut self, event: &Event) -> Result<(), EventError>;
-<<<<<<< HEAD
     /// Rehydrate an aggregate from its historical event stream.
-=======
-
->>>>>>> 65d9cd6 (feat(eventra): fix aggregate replay and event bus cloning)
     fn load_from_events(&mut self, events: &[Event]) -> Result<(), EventError> {
         for event in events {
             self.apply(event)?;
         }
         Ok(())
     }
-<<<<<<< HEAD
     /// Execute a command, producing the events that result from it.
-    fn execute(&mut self, command: super::Command) -> Result<Vec<Event>, EventError>;
-=======
-
-    fn execute(&mut self, _command: Command) -> Result<Vec<Event>, EventError>;
->>>>>>> 65d9cd6 (feat(eventra): fix aggregate replay and event bus cloning)
+    fn execute(&mut self, command: Command) -> Result<Vec<Event>, EventError>;
 }
 
 /// Base aggregate implementation

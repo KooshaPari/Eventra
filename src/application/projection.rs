@@ -1,10 +1,7 @@
 //! Projection System
 
 use parking_lot::RwLock;
-<<<<<<< HEAD
-=======
 use std::collections::HashMap;
->>>>>>> 65d9cd6 (feat(eventra): fix aggregate replay and event bus cloning)
 
 use crate::domain::{Event, EventError, EventStore};
 
@@ -41,14 +38,6 @@ impl ProjectionRunner {
 
     pub fn register<P: Projection + 'static>(&self, projection: P) {
         let name = projection.name().to_string();
-<<<<<<< HEAD
-        drop(self.projections.write().insert(name.clone(), Box::new(projection)));
-        drop(self.state.write().insert(name.clone(), ProjectionState {
-            name,
-            position: 0,
-            last_updated: chrono::Utc::now(),
-        }));
-=======
         drop(
             self.projections
                 .write()
@@ -62,7 +51,6 @@ impl ProjectionRunner {
                 last_updated: chrono::Utc::now(),
             },
         ));
->>>>>>> 65d9cd6 (feat(eventra): fix aggregate replay and event bus cloning)
     }
 
     pub fn run(&self) -> Result<(), EventError> {
