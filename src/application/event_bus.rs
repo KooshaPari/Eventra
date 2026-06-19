@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::domain::{Event, EventBus, EventError, EventHandler, EventHandlerClone};
+use crate::domain::{Event, EventBus, EventError, EventHandler};
 
 /// Simple in-memory event bus
 pub struct InMemoryEventBus {
@@ -60,7 +60,7 @@ mod tests {
 
     use serde_json::json;
 
-    use crate::domain::{Event, EventBus, EventHandler};
+    use crate::domain::{Event, EventBus, EventHandler, EventHandlerClone};
 
     use super::InMemoryEventBus;
 
