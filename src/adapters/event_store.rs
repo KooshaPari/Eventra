@@ -61,4 +61,8 @@ impl EventStore for InMemoryEventStore {
             .cloned()
             .collect())
     }
+
+    fn get_all_events(&self) -> Result<Vec<Event>, EventError> {
+        Ok(self.all_events.read().clone())
+    }
 }

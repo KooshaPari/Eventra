@@ -41,8 +41,3 @@ impl Default for CommandMetadata {
         }
     }
 }
-
-/// Command handler trait
-pub trait CommandHandler<C: Send + 'static>: Send + Sync {
-    fn handle(&self, command: C) -> Result<(), super::error::EventError>;
-}

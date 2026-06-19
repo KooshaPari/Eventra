@@ -95,4 +95,8 @@ pub trait EventStore: Send + Sync {
     fn append(&self, event: &Event) -> Result<(), EventError>;
     fn get_events(&self, aggregate_id: &str) -> Result<Vec<Event>, EventError>;
     fn get_events_since(&self, since: DateTime<Utc>) -> Result<Vec<Event>, EventError>;
+    /// Return every stored event in append order. Used by projection replay
+    /// so that [`crate::application::projection::ProjectionRunner::run`] can
+    /// rebuild projection state from offset 0 (or from a saved position).
+    fn get_all_events(&self) -> Result<Vec<Event>, EventError>;
 }

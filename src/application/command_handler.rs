@@ -77,6 +77,10 @@ mod tests {
         ) -> Result<Vec<Event>, EventError> {
             Ok(Vec::new())
         }
+
+        fn get_all_events(&self) -> Result<Vec<Event>, EventError> {
+            Ok(self.events.lock().expect("lock").clone())
+        }
     }
 
     #[derive(Default)]
