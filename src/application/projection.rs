@@ -1,7 +1,7 @@
 //! Projection System
 
-use std::collections::HashMap;
 use parking_lot::RwLock;
+use std::collections::HashMap;
 
 use crate::domain::{Event, EventError, EventStore};
 
@@ -38,12 +38,19 @@ impl ProjectionRunner {
 
     pub fn register<P: Projection + 'static>(&self, projection: P) {
         let name = projection.name().to_string();
-        drop(self.projections.write().insert(name.clone(), Box::new(projection)));
-        drop(self.state.write().insert(name.clone(), ProjectionState {
-            name,
-            position: 0,
-            last_updated: chrono::Utc::now(),
-        }));
+        drop(
+            self.projections
+                .write()
+                .insert(name.clone(), Box::new(projection)),
+        );
+        drop(self.state.write().insert(
+            name.clone(),
+            ProjectionState {
+                name,
+                position: 0,
+                last_updated: chrono::Utc::now(),
+            },
+        ));
     }
 
     /// Replay events for every registered projection starting from its saved

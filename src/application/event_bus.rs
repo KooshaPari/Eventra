@@ -2,13 +2,14 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+
 use parking_lot::RwLock;
 
-use crate::domain::{Event, EventBus, EventError, EventHandler, EventHandlerClone};
+use crate::domain::{Event, EventBus, EventError, EventHandler};
 
 /// Simple in-memory event bus
 pub struct InMemoryEventBus {
-    subscribers: RwLock<HashMap<String, Vec<Arc<Box<dyn EventHandler>>>>>,
+    subscribers: RwLock<HashMap<String, Vec<Arc<dyn EventHandler>>>>,
 }
 
 impl InMemoryEventBus {
@@ -41,25 +42,61 @@ impl EventBus for InMemoryEventBus {
 
     fn subscribe(&self, handler: Box<dyn EventHandler>) -> Result<(), EventError> {
         let event_types = handler.event_types();
+        let handler = Arc::from(handler);
         let mut subscribers = self.subscribers.write();
 
         for event_type in event_types {
             let entry = subscribers.entry(event_type).or_insert_with(Vec::new);
-            entry.push(Arc::new(handler.clone_boxed()));
+            entry.push(Arc::clone(&handler));
         }
 
         Ok(())
     }
 }
 
-impl Clone for Box<dyn EventHandler> {
-    fn clone(&self) -> Self {
-        self.clone_boxed()
-    }
-}
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-impl<T: EventHandler + Clone + 'static> EventHandlerClone for T {
-    fn clone_boxed(&self) -> Box<dyn EventHandler> {
-        Box::new(self.clone())
+    use serde_json::json;
+
+    use crate::domain::{Event, EventBus, EventHandler, EventHandlerClone};
+
+    use super::InMemoryEventBus;
+
+    #[derive(Clone, Default)]
+    struct CountingHandler {
+        hits: std::sync::Arc<AtomicUsize>,
+    }
+
+    impl EventHandler for CountingHandler {
+        fn handle(&self, _event: &Event) -> Result<(), crate::domain::EventError> {
+            self.hits.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn event_types(&self) -> Vec<String> {
+            vec!["event.created".to_string(), "event.updated".to_string()]
+        }
+    }
+
+    impl EventHandlerClone for CountingHandler {
+        fn clone_boxed(&self) -> Box<dyn EventHandler> {
+            Box::new(self.clone())
+        }
+    }
+
+    #[test]
+    fn subscribe_clones_handler_per_event_type_without_requiring_box_clone() {
+        let bus = InMemoryEventBus::new();
+        let handler = CountingHandler::default();
+        let hits = handler.hits.clone();
+
+        bus.subscribe(Box::new(handler)).expect("subscribe succeeds");
+
+        let event = Event::new("agg-1", "aggregate", "event.created", 1, json!({}));
+        bus.publish(&event).expect("publish succeeds");
+
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
     }
 }

@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 
-use super::{Event, error::EventError};
+use super::{Command, Event, error::EventError};
 
 /// Aggregate root trait
 pub trait Aggregate: Send {
@@ -19,7 +19,7 @@ pub trait Aggregate: Send {
         Ok(())
     }
     /// Execute a command, producing the events that result from it.
-    fn execute(&mut self, command: super::Command) -> Result<Vec<Event>, EventError>;
+    fn execute(&mut self, command: Command) -> Result<Vec<Event>, EventError>;
 }
 
 /// Base aggregate implementation
@@ -96,7 +96,7 @@ impl Aggregate for BaseAggregate {
         Ok(())
     }
 
-    fn execute(&mut self, _command: super::Command) -> Result<Vec<Event>, EventError> {
+    fn execute(&mut self, _command: Command) -> Result<Vec<Event>, EventError> {
         Err(EventError::Aggregate("execute not implemented".into()))
     }
 }
@@ -104,7 +104,6 @@ impl Aggregate for BaseAggregate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::Event;
 
     #[test]
     fn new_aggregate_has_zero_version_and_no_events() {
@@ -172,5 +171,18 @@ mod tests {
 
         agg.mark_events_committed();
         assert!(agg.uncommitted_events().is_empty());
+    }
+
+    #[test]
+    fn load_from_events_replays_events_and_advances_version() {
+        let mut aggregate = BaseAggregate::new("agg-1");
+        let events = vec![
+            Event::new("agg-1", "aggregate", "created", 1, serde_json::json!({})),
+            Event::new("agg-1", "aggregate", "updated", 2, serde_json::json!({})),
+        ];
+
+        aggregate.load_from_events(&events).expect("replay succeeds");
+
+        assert_eq!(aggregate.version(), 2);
     }
 }

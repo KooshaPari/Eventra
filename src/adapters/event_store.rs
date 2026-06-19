@@ -1,8 +1,8 @@
 //! Event Store Adapters
 
-use std::collections::HashMap;
-use parking_lot::RwLock;
 use chrono::{DateTime, Utc};
+use parking_lot::RwLock;
+use std::collections::HashMap;
 
 use crate::domain::{Event, EventStore, EventError};
 
