@@ -3,30 +3,54 @@ resolver = "2"
 members = [
     ".",
     "rust/phenotype-event-contracts",
+    "rust/phenotype-event-bus",
+    "rust/phenotype-event-sourcing",
 ]
 
-[package]
-name = "eventkit"
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
-description = "Event-driven architecture framework with CQRS and Event Sourcing"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/KooshaPari/Eventra"
-documentation = "https://docs.rs/eventkit"
-keywords = ["phenotype", "pheno-proc"]
-categories = ["development-tools"]
-authors = ["kooshapari"]
 rust-version = "1.75"
 
-[dependencies]
+[workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
 anyhow = "1.0"
 async-trait = "0.1"
-parking_lot = "0.12"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
+tokio = { version = "1.0", features = ["full"] }
+ulid = { version = "1", features = ["serde"] }
+dashmap = "6"
+sha2 = "0.11"
+hex = "0.4"
+phenotype-error-core = { git = "https://github.com/KooshaPari/phenotype-types", branch = "main" }
+
+[package]
+name = "eventkit"
+version.workspace = true
+edition.workspace = true
+description = "Event-driven architecture framework with CQRS and Event Sourcing"
+license.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/eventkit"
+keywords = ["phenotype", "pheno-proc"]
+categories = ["development-tools"]
+authors = ["kooshapari"]
+rust-version.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+parking_lot = "0.12"
+chrono = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
-tokio = { version = "1.0", features = ["full"] }
+tokio = { workspace = true }
