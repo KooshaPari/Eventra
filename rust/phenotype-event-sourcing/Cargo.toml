@@ -1,0 +1,22 @@
+[package]
+name = "phenotype-event-sourcing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Append-only event store with SHA-256 hash chain verification and snapshot management"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
