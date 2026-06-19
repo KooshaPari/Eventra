@@ -14,9 +14,7 @@ have been generated for it yet during the L7 sweep.
 
 ## Intent Statement
 
-> **TODO**: write a 2-3 sentence intent statement describing what argis-extensions
-> is, what problem it solves, and what success looks like. Until you
-> fill this in, the stub stands as proof-of-existence.
+argis-extensions is a clean extension layer on top of the Bifrost LLM gateway, consuming `bifrost` and `cliproxy` as vendored Go modules with **zero modifications to upstream** and layering a plugin system, CLI (Cobra), and serverless deployment targets (Fly.io, Vercel, Railway, Homebox) on top. It exists so the Phenotype org can stay in lockstep with the upstream Bifrost roadmap while still shipping a stable, opinionated gateway with PostgreSQL persistence, Redis caching, and a Prometheus + structured-logging observability surface. Success = `bifrost init` → `bifrost server` → `bifrost deploy fly` runs end-to-end against a vanilla checkout.
 
 ## Role
 
