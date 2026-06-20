@@ -21,6 +21,24 @@
 <!-- AI-DD-META:END -->
 # eventkit - Event-Driven Architecture Framework
 
+## Quickstart
+
+> Event-driven architecture framework with CQRS and Event Sourcing
+
+```bash
+# Clone, build, test
+git clone https://github.com/KooshaPari/Eventra.git
+cd Eventra
+```
+
+```rust
+// Add to Cargo.toml:
+// eventra = "<version>"
+```
+
+See [SPEC.md](SPEC.md) for the full specification and [llms.txt](llms.txt) for machine-readable metadata.
+
+
 > **Work state:** ACTIVE · **Progress:** `█████░░░░░ 50%`
 > Event-driven Rust framework: CQRS + Event Sourcing with EventStore and projection support. Hexagonal architecture; in-memory adapters shipped today; Postgres/Kafka/RabbitMQ adapters planned. · updated 2026-06-18
 
