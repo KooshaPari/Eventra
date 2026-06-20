@@ -16,7 +16,7 @@ paths = [
   'build/',
   '.cargo/',
   '.pytest_cache/',
-  '*.lock',
+  '''.*\.lock''',
   'Cargo.lock',
   'package-lock.json',
   'yarn.lock',

@@ -47,21 +47,30 @@ pub enum EventBusError {
     Store(#[from] EventStoreError),
 }
 
-/// Event store–level errors, using derive_more for automatic From impls.
+/// Event store–level errors.
 ///
-/// Each single‑field variant gains `From<T>` automatically, so callers
-/// can use `?` with `serde_json::Error`, `std::io::Error`, etc. without
-/// writing manual conversions.
+/// `serde_json::Error` and `std::io::Error` get automatic `From` impls via
+/// `#[from]`. The two string variants (`AggregateNotFound`, `InvalidInput`)
+/// cannot also derive `From<String>` — that would produce conflicting
+/// `From<String>` impls — so callers must construct them explicitly.
 #[derive(Debug, From)]
 pub enum EventStoreError {
     /// JSON serialisation / deserialisation failed.
+    #[from]
     SerdeJson(serde_json::Error),
     /// I/O operation failed (disk, network, …).
+    #[from]
     Io(std::io::Error),
     /// The requested aggregate was not found.
     AggregateNotFound(String),
     /// A generic invalid‑input error.
     InvalidInput(String),
+}
+
+impl From<&str> for EventStoreError {
+    fn from(s: &str) -> Self {
+        Self::InvalidInput(s.to_string())
+    }
 }
 
 // ── Display impl (derive_more cannot produce rich enum messages, so we
