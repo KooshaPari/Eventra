@@ -17,6 +17,7 @@ rust-version = "1.75"
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+derive_more = { version = "1.0", features = ["from", "display"] }
 thiserror = "2.0"
 anyhow = "1.0"
 async-trait = "0.1"
@@ -28,6 +29,8 @@ dashmap = "6"
 sha2 = "0.11"
 hex = "0.4"
 phenotype-error-core = { git = "https://github.com/KooshaPari/phenotype-types", branch = "main" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [package]
 name = "eventkit"
@@ -43,14 +46,25 @@ authors = ["kooshapari"]
 rust-version.workspace = true
 
 [dependencies]
+<<<<<<< Updated upstream
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+=======
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+derive_more = { version = "1.0", features = ["from", "display"] }
+thiserror = "2.0"
+anyhow = "1.0"
+async-trait = "0.1"
+>>>>>>> Stashed changes
 parking_lot = "0.12"
 chrono = { workspace = true }
 uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
