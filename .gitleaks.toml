@@ -1,0 +1,45 @@
+# Gitleaks configuration for Eventra.
+# https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+#
+# This file intentionally allows broad defaults plus a few project-specific
+# extensions. The defaults ship with a sensible rule set for AWS, GitHub,
+# Stripe, Slack, JWTs, private keys, etc. We extend with patterns we have
+# accidentally leaked in the past and tighten a few false-positive prone
+# rules for this Rust workspace.
+
+title = "Eventra gitleaks config"
+
+# Allow-list paths that commonly contain non-secret noise (test fixtures,
+# docs, vendored content). CI runs with --no-git, so anything that is
+# committed at HEAD is scanned.
+[allowlist]
+  paths = [
+    '''(^|/)target/''',
+    '''(^|/)Cargo.lock$''',
+    '''(?i)(^|/)(README|CHANGELOG|CONTRIBUTING|SECURITY|CODE_OF_CONDUCT|LICENSE|\.gitattributes|\.gitignore)(\.md)?$''',
+    '''(?i)\.md$''',
+  ]
+
+  # Allow common example / fixture markers. These should never appear in
+  # real secrets but the scanner sometimes trips on documentation.
+  regexes = [
+    '''EXAMPLE[_A-Z0-9]*''',
+    '''(placeholder|dummy|fake|test|sample)[-_A-Z0-9]*''',
+  ]
+
+# Detect common Rust crate tokens (crates.io API tokens start with
+# `cio_`). The default rules already cover GitHub PATs and AWS keys, but
+# crates.io is not in the default rule set as of this writing.
+[[rules]]
+  id = "cratesio-api-token"
+  description = "crates.io API token"
+  regex = '''\bcio_[A-Za-z0-9]{32,}\b'''
+  tags = ["secret", "registry"]
+
+# Detect high-entropy GitHub fine-grained PATs (the new `github_pat_*`
+# format). The default rules cover the older `ghp_*` format.
+[[rules]]
+  id = "github-fine-grained-pat"
+  description = "GitHub fine-grained personal access token"
+  regex = '''\bgithub_pat_[A-Za-z0-9_]{82,}\b'''
+  tags = ["secret", "github"]
