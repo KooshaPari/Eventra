@@ -16,7 +16,7 @@ paths = [
   'build/',
   '.cargo/',
   '.pytest_cache/',
-  '*.lock',
+  '''.*\.lock''',
   'Cargo.lock',
   'package-lock.json',
   'yarn.lock',
@@ -31,4 +31,23 @@ regexes = [
   'example[_-]?token',
   'EXAMPLE_API_KEY',
   'FAKE_TOKEN',
+  '''EXAMPLE[_A-Z0-9]*''',
+  '''(placeholder|dummy|fake|test|sample)[-_A-Z0-9]*''',
 ]
+
+# Detect common Rust crate tokens (crates.io API tokens start with
+# `cio_`). The default rules already cover GitHub PATs and AWS keys, but
+# crates.io is not in the default rule set as of this writing.
+[[rules]]
+  id = "cratesio-api-token"
+  description = "crates.io API token"
+  regex = '''\bcio_[A-Za-z0-9]{32,}\b'''
+  tags = ["secret", "registry"]
+
+# Detect high-entropy GitHub fine-grained PATs (the new `github_pat_*`
+# format). The default rules cover the older `ghp_*` format.
+[[rules]]
+  id = "github-fine-grained-pat"
+  description = "GitHub fine-grained personal access token"
+  regex = '''\bgithub_pat_[A-Za-z0-9_]{82,}\b'''
+  tags = ["secret", "github"]
