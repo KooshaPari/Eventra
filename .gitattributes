@@ -1,0 +1,64 @@
+# .gitattributes — Eventra
+# https://git-scm.com/docs/gitattributes
+# Normalizes EOL, sets linguist overrides, and keeps generated files out of
+# language statistics.
+
+# Default to LF for all text
+*               text=auto eol=lf
+
+# Shell / build scripts
+*.sh            text eol=lf
+*.bash          text eol=lf
+justfile        text eol=lf
+Makefile        text eol=lf
+
+# Rust — keep diffs sane
+*.rs            text eol=lf
+*.toml          text eol=lf
+Cargo.lock      text eol=lf
+
+# Documentation
+*.md            text eol=lf
+*.adoc          text eol=lf
+LICENSE         text eol=lf
+
+# GitHub metadata
+.github/**/*.yml  text eol=lf
+.github/**/*.yaml text eol=lf
+
+# Windows-friendly line endings for files that GitHub renders with CRLF
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# Binary / generated — keep them binary, not diff-able
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.pdf           binary
+*.gz            binary
+*.tgz           binary
+*.zip           binary
+*.tar           binary
+*.wasm          binary
+target/**       binary -diff
+
+# Generated / vendored — exclude from language statistics
+/audit_scorecard.json       linguist-generated=true
+Cargo.lock                  linguist-generated=true
+**/target/**                linguist-generated=true
+docs/_generated/**          linguist-generated=true
+.claude/**                  linguist-generated=true
+.devcontainer/**            linguist-generated=true
+
+# Markdown documentation that is documentation, not data
+docs/**/*.md                linguist-documentation=true
+CHANGELOG.md                linguist-documentation=true
+CONTRIBUTING.md             linguist-documentation=true
+CODE_OF_CONDUCT.md          linguist-documentation=true
+SECURITY.md                 linguist-documentation=true
+
+# Use Rust for Cargo manifests
+Cargo.toml                  linguist-language=Rust

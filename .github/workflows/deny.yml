@@ -1,0 +1,60 @@
+name: Deny
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-deny:
+    name: cargo-deny (advisories, bans, sources, licenses)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo registry & index
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/index
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-deny-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-deny-
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+      - name: Run cargo-deny check
+        run: cargo deny check --hide-inclusion
+
+  gomod-check:
+    name: Go module sanity check
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - name: Set up Go
+        uses: actions/setup-go@44694675825211faa9b5ab2f89d8f9e5cb7e84a4
+        with:
+          go-version: "1.22"
+      - name: Run go mod verify (if go.mod present)
+        if: ${{ hashFiles('**/go.mod') != '' }}
+        run: |
+          set -euo pipefail
+          go mod download
+          go mod verify
+      - name: Skip notice
+        if: ${{ hashFiles('**/go.mod') == '' }}
+        run: echo "No go.mod found in this repository; skipping gomod check (cargo-only workspace)."
