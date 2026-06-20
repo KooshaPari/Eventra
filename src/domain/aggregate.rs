@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 
-use super::{Command, Event, error::EventError};
+use super::{Command, Event, Validate, error::EventError};
 
 /// Aggregate root trait
 pub trait Aggregate: Send {
@@ -11,11 +11,18 @@ pub trait Aggregate: Send {
     fn uncommitted_events(&self) -> Vec<Event>;
     fn mark_events_committed(&mut self);
     fn apply(&mut self, event: &Event) -> Result<(), EventError>;
+    /// Validate aggregate state invariants. Called after every state change.
+    /// Implementations should return [`EventError::Validation`] when the
+    /// aggregate has entered an invalid state.
+    fn validate_state(&self) -> Result<(), EventError> {
+        Ok(())
+    }
     /// Rehydrate an aggregate from its historical event stream.
     fn load_from_events(&mut self, events: &[Event]) -> Result<(), EventError> {
         for event in events {
             self.apply(event)?;
         }
+        self.validate_state()?;
         Ok(())
     }
     /// Execute a command, producing the events that result from it.
@@ -54,14 +61,19 @@ impl BaseAggregate {
         self.uncommitted.clear();
     }
 
-    pub fn add_event(&mut self, event: Event) {
+    pub fn add_event(&mut self, event: Event) -> Result<(), EventError> {
+        event.validate()?;
         self.version += 1;
         self.uncommitted.push_back(event);
+        self.validate_state()?;
+        Ok(())
     }
 
     pub fn apply(&mut self, event: &Event) -> Result<(), EventError> {
+        event.validate()?;
         self.version += 1;
         self.uncommitted.push_back(event.clone());
+        self.validate_state()?;
         Ok(())
     }
 
@@ -69,6 +81,7 @@ impl BaseAggregate {
         for event in events {
             self.apply(event)?;
         }
+        self.validate_state()?;
         Ok(())
     }
 }
@@ -91,8 +104,10 @@ impl Aggregate for BaseAggregate {
     }
 
     fn apply(&mut self, event: &Event) -> Result<(), EventError> {
+        event.validate()?;
         self.version += 1;
         self.uncommitted.push_back(event.clone());
+        self.validate_state()?;
         Ok(())
     }
 
@@ -123,13 +138,28 @@ mod tests {
             1,
             serde_json::json!({}),
         );
-        agg.add_event(event.clone());
+        agg.add_event(event.clone()).expect("valid event");
 
         assert_eq!(agg.version(), 1);
         let events = agg.uncommitted_events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].metadata.aggregate_id, "agg-2");
         assert_eq!(events[0].metadata.event_type, "Created");
+    }
+
+    #[test]
+    fn add_event_rejects_invalid_event() {
+        let mut agg = BaseAggregate::new("agg-x");
+        let event = Event::new(
+            "",
+            "TestAggregate",
+            "Created",
+            0,
+            serde_json::json!({}),
+        );
+        let result = agg.add_event(event);
+        assert!(matches!(result, Err(EventError::Validation(_))));
+        assert_eq!(agg.version(), 0, "rejected events must not bump version");
     }
 
     #[test]
@@ -141,7 +171,8 @@ mod tests {
             "Created",
             1,
             serde_json::json!({}),
-        ));
+        ))
+        .expect("valid event");
         assert_eq!(agg.version(), 1);
         assert_eq!(agg.uncommitted_events().len(), 1);
 

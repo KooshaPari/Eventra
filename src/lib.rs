@@ -6,6 +6,8 @@ pub mod domain;
 pub mod application;
 pub mod adapters;
 pub mod infrastructure;
+pub mod security;
 
 pub use domain::*;
 pub use application::*;
+pub use security::*;

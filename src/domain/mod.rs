@@ -9,3 +9,4 @@ pub use event::*;
 pub use aggregate::*;
 pub use command::*;
 pub use error::*;
+pub use event::Validate;

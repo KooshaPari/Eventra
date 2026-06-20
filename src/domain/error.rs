@@ -21,6 +21,18 @@ pub enum EventError {
 
     #[error("Serialization error: {0}")]
     SerdeJson(#[from] serde_json::Error),
+
+    #[error("Validation error: {0}")]
+    Validation(String),
+
+    #[error("Authorization denied: {0}")]
+    Unauthorized(String),
+
+    #[error("Encryption error: {0}")]
+    Encryption(String),
+
+    #[error("Signature error: {0}")]
+    Signature(String),
 }
 
 #[cfg(test)]

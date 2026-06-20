@@ -1,11 +1,31 @@
 //! Command Handler
 
-use crate::domain::{Aggregate, Command, EventError, EventStore};
+use crate::domain::{Aggregate, Command, EventError, EventStore, Validate};
+
+/// Authorization hook. Implementations decide whether a [`Command`] is allowed
+/// to be executed. Returning [`EventError::Unauthorized`] rejects the command
+/// before any state change occurs.
+pub trait CommandAuthorizer: Send + Sync {
+    fn authorize(&self, command: &Command) -> Result<(), EventError>;
+}
+
+/// Default authorizer that permits every command. Plug a stricter
+/// implementation into [`CommandHandlerService::with_authorizer`] to enforce
+/// access control.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct AllowAllAuthorizer;
+
+impl CommandAuthorizer for AllowAllAuthorizer {
+    fn authorize(&self, _command: &Command) -> Result<(), EventError> {
+        Ok(())
+    }
+}
 
 /// Command handler service
 pub struct CommandHandlerService<A: Aggregate> {
     event_store: Box<dyn EventStore>,
     aggregate_factory: Box<dyn AggregateFactory<A>>,
+    authorizer: Box<dyn CommandAuthorizer>,
 }
 
 impl<A: Aggregate> CommandHandlerService<A> {
@@ -16,10 +36,23 @@ impl<A: Aggregate> CommandHandlerService<A> {
         Self {
             event_store,
             aggregate_factory,
+            authorizer: Box::new(AllowAllAuthorizer),
         }
     }
 
+    /// Replace the default [`AllowAllAuthorizer`] with a custom implementation.
+    pub fn with_authorizer(mut self, authorizer: Box<dyn CommandAuthorizer>) -> Self {
+        self.authorizer = authorizer;
+        self
+    }
+
     pub fn handle(&self, command: Command) -> Result<A, EventError> {
+        // 1. Validate command shape (non-empty fields, payload size limits).
+        command.validate()?;
+
+        // 2. Authorization gate before any state is read or mutated.
+        self.authorizer.authorize(&command)?;
+
         // Load aggregate
         let events = self.event_store.get_events(&command.aggregate_id)?;
         let mut aggregate = self.aggregate_factory.create(&command.aggregate_id)?;
@@ -28,8 +61,9 @@ impl<A: Aggregate> CommandHandlerService<A> {
         // Execute command (returns events)
         let new_events = aggregate.execute(command)?;
 
-        // Append events
+        // Validate each produced event before persisting.
         for event in &new_events {
+            event.validate()?;
             self.event_store.append(event)?;
         }
 

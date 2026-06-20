@@ -17,6 +17,13 @@ pub struct EventMetadata {
     pub timestamp: DateTime<Utc>,
     pub causation_id: Option<Uuid>,
     pub correlation_id: Option<Uuid>,
+    /// Optional integrity signature. Populated by an
+    /// [`EventSigner`](crate::security::EventSigner) and verified on read.
+    /// Excluded from the canonical signed payload (see
+    /// [`crate::security::signer`]) so that signing and verification operate
+    /// over the same byte sequence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
 }
 
 impl EventMetadata {
@@ -35,6 +42,7 @@ impl EventMetadata {
             timestamp: Utc::now(),
             causation_id: None,
             correlation_id: None,
+            signature: None,
         }
     }
 }
@@ -99,4 +107,62 @@ pub trait EventStore: Send + Sync {
     /// so that [`crate::application::projection::ProjectionRunner::run`] can
     /// rebuild projection state from offset 0 (or from a saved position).
     fn get_all_events(&self) -> Result<Vec<Event>, EventError>;
+}
+
+/// Maximum permitted size of an event or command payload, in bytes. Payloads
+/// exceeding this bound are rejected by the default [`Validate`] implementations
+/// to defend against resource exhaustion from untrusted input.
+pub const MAX_PAYLOAD_BYTES: usize = 64 * 1024;
+
+/// Pluggable validation hook for events, commands, and aggregate state.
+///
+/// Implementations should return [`EventError::Validation`] for any input that
+/// does not satisfy their invariants. The framework runs these checks before
+/// persisting or publishing an event, before dispatching a command, and before
+/// applying an event to an aggregate.
+pub trait Validate {
+    fn validate(&self) -> Result<(), EventError>;
+}
+
+fn payload_size(value: &serde_json::Value) -> usize {
+    serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0)
+}
+
+fn require_non_empty(field: &str, value: &str) -> Result<(), EventError> {
+    if value.trim().is_empty() {
+        return Err(EventError::Validation(format!("{} must not be empty", field)));
+    }
+    Ok(())
+}
+
+fn require_size_limit(field: &str, size: usize) -> Result<(), EventError> {
+    if size > MAX_PAYLOAD_BYTES {
+        return Err(EventError::Validation(format!(
+            "{} exceeds maximum size of {} bytes",
+            field, MAX_PAYLOAD_BYTES
+        )));
+    }
+    Ok(())
+}
+
+impl Validate for Event {
+    fn validate(&self) -> Result<(), EventError> {
+        require_non_empty("aggregate_id", &self.metadata.aggregate_id)?;
+        require_non_empty("aggregate_type", &self.metadata.aggregate_type)?;
+        require_non_empty("event_type", &self.metadata.event_type)?;
+        require_size_limit("payload", payload_size(&self.payload))?;
+        Ok(())
+    }
+}
+
+impl Validate for EventMetadata {
+    fn validate(&self) -> Result<(), EventError> {
+        require_non_empty("aggregate_id", &self.aggregate_id)?;
+        require_non_empty("aggregate_type", &self.aggregate_type)?;
+        require_non_empty("event_type", &self.event_type)?;
+        if self.version == 0 {
+            return Err(EventError::Validation("version must be >= 1".into()));
+        }
+        Ok(())
+    }
 }
