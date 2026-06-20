@@ -28,6 +28,8 @@ dashmap = "6"
 sha2 = "0.11"
 hex = "0.4"
 phenotype-error-core = { git = "https://github.com/KooshaPari/phenotype-types", branch = "main" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [package]
 name = "eventkit"
@@ -51,6 +53,8 @@ async-trait = { workspace = true }
 parking_lot = "0.12"
 chrono = { workspace = true }
 uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
