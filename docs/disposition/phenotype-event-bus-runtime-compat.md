@@ -1,64 +1,64 @@
-# phenotype-event-bus runtime boundary disposition
+# phenotype-event-bus runtime boundary
 
 Date: 2026-06-21
-Status: KEEP_COMPAT
-Owner: Eventra
-Related canonical runtime substrate: phenoEvents
+Decision: KEEP_COMPAT
+Canonical runtime bus owner: KooshaPari/phenoEvents
+
+## Context
+
+Eventra owns the CQRS/event-sourcing framework boundary for the Phenotype ecosystem.
+phenoEvents owns the reusable runtime event-bus substrate.
+
+This repository still contains three event-related surfaces with different jobs:
+
+| Surface | Evidence | Ownership |
+| --- | --- | --- |
+| Framework-local in-memory bus | src/application/event_bus.rs | Eventra-owned adapter for Eventra domain events. |
+| Event contracts | rust/phenotype-event-contracts | Eventra-owned trait and envelope contracts. |
+| Event sourcing | rust/phenotype-event-sourcing | Eventra-owned event-sourcing package. |
+| Runtime bus crate | rust/phenotype-event-bus | Compatibility surface; not canonical for new runtime bus work. |
 
 ## Decision
 
-phenoEvents is the canonical reusable runtime event-bus substrate for the Phenotype ecosystem.
+Keep rust/phenotype-event-bus as a compatibility crate for now. Do not delete it as a duplicate of phenoEvents until its public install/import surface has either been migrated or intentionally retired in a breaking release.
 
-Eventra remains the canonical CQRS/event-sourcing framework and event-contracts owner. The Eventra root in-process bus (src/application/event_bus.rs) remains framework-local because it is coupled to Eventra domain events, aggregate metadata, handler dispatch, and synchronous CQRS/eventkit test seams.
+New runtime bus features belong in phenoEvents, not in rust/phenotype-event-bus.
 
-rust/phenotype-event-contracts remains Eventra-owned as trait-only contracts for Eventra event envelopes, stores, pub/sub handlers, and framework integration.
+## Rationale
 
-rust/phenotype-event-bus is not canonical for new runtime-bus work. It is kept as a compatibility crate until a consumer scan and migration plan proves it can be removed or replaced with a pheno-events adapter.
+rust/phenotype-event-bus is not a trivial duplicate. It exposes a distinct public API:
 
-## Why this is not deleted now
+- generic EventEnvelope<T> payloads;
+- EventId based on ULID;
+- subject-based subscriptions;
+- wildcard subject routing;
+- async publish, subscribe, request, and close operations.
 
-The crate has a separate dynamic install/import surface and distinct API shape:
+phenoEvents is the stronger canonical runtime bus because it carries the maintained substrate responsibilities: durable SQLite outbox, dead-letter handling, idempotency, projection-oriented envelope handling, metrics, and tracing.
 
-- package/crate surface: phenotype-event-bus
-- generic envelope: EventEnvelope<T>
-- event id type: EventId(Ulid)
-- subject-based subscriptions, including wildcard suffix matching
-- async publish, subscribe, request, and close API shape
+Eventra should retain its framework-local bus and contracts because those are coupled to CQRS/event-sourcing semantics rather than a general reusable runtime bus substrate.
 
-Those behaviors are not proven to be exact equivalents of pheno-events today. phenoEvents has a stronger canonical runtime substrate model, especially durable SQLite outbox, retry/DLQ, idempotency, metrics, tracing, and EventEnvelope-shaped contracts. But stronger substrate ownership does not by itself prove safe deletion of a public compatibility crate.
+## Required gates before removal
 
-## Allowed work
+Before rust/phenotype-event-bus can be removed from Eventra:
 
-Allowed in rust/phenotype-event-bus:
+1. Scan GitHub and local repos for phenotype-event-bus imports, package references, and lockfile references.
+2. Decide whether subject/wildcard routing remains a required feature; if yes, add it to phenoEvents or publish a small adapter crate.
+3. Provide a migration guide from EventEnvelope<T> and ULID IDs to the canonical phenoEvents envelope model.
+4. Mark the crate deprecated in one release or make a major-version breaking change.
+5. Update phenotype-registry with the final disposition.
 
-- security fixes
-- compatibility fixes
-- documentation
-- adapters or bridges that reduce migration risk
-- major-version deprecation work after downstream consumers are inventoried
+## Current allowed work
+
+Allowed:
+
+- security fixes;
+- compatibility fixes;
+- docs clarifying the ownership boundary;
+- adapters that point consumers toward phenoEvents.
 
 Not allowed:
 
-- new runtime-bus features that compete with phenoEvents
-- new persistence, DLQ, registry, observability, or projection features
-- expanding the crate into a second canonical event substrate
-
-## Migration path
-
-1. Inventory all internal and public references to phenotype-event-bus.
-2. Decide whether subject/wildcard routing is required in phenoEvents or should stay framework-local.
-3. If consumers exist, add a compatibility adapter or documented major-version migration to pheno-events.
-4. If no consumers exist, preserve the final API snapshot in phenotype-registry and remove the crate from the Eventra workspace in a breaking cleanup PR.
-5. Keep phenotype-event-contracts in Eventra unless a separate contracts-owner ADR supersedes it.
-
-## Deletion readiness status
-
-rust/phenotype-event-bus is not deletion-ready.
-
-Minimum safe deletion gate:
-
-- registry traceability row for the crate
-- consumer/import scan
-- explicit decision on EventEnvelope<T>, EventId(Ulid), and subject/wildcard routing
-- either a pheno-events adapter/reexport or a documented no-consumer finding
-- breaking-change notice if the crate was ever published or imported externally
+- new standalone runtime bus features;
+- expanding phenotype-event-bus as a second canonical bus;
+- deleting the crate without the gates above.
