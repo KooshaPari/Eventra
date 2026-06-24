@@ -5,6 +5,9 @@ use std::fmt::Debug;
 use thiserror::Error;
 use ulid::Ulid;
 
+pub mod outbox;
+pub use outbox::{InMemoryOutbox, OutboxEntry, OutboxError, OutboxStore};
+
 /// Event ID using ULID for sortability
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, serde::Deserialize)]
 pub struct EventId(Ulid);
