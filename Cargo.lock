@@ -869,17 +869,10 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phenotype-error-core"
-version = "0.2.0"
-source = "git+https://github.com/KooshaPari/phenotype-types?branch=main#dd14f735c373e66b1907b7d5d66d3e175abe1df2"
+version = "0.1.0"
 dependencies = [
- "anyhow",
- "chrono",
- "reqwest",
- "serde",
  "serde_json",
  "thiserror",
- "tokio",
- "url",
 ]
 
 [[package]]

@@ -5,6 +5,7 @@ members = [
     "rust/phenotype-event-contracts",
     "rust/phenotype-event-bus",
     "rust/phenotype-event-sourcing",
+    "rust/phenotype-error-core",
 ]
 
 [workspace.package]
@@ -28,7 +29,10 @@ ulid = { version = "1", features = ["serde"] }
 dashmap = "6"
 sha2 = "0.10"
 hex = "0.4"
-phenotype-error-core = { git = "https://github.com/KooshaPari/phenotype-types", branch = "main" }
+# The upstream `KooshaPari/phenotype-types` repo is no longer accessible (HTTP 404),
+# so `phenotype-error-core` is now vendored as a workspace member. See
+# `rust/phenotype-error-core/src/lib.rs` for the root-cause note and CI evidence.
+phenotype-error-core = { path = "rust/phenotype-error-core" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
