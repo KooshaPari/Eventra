@@ -1,0 +1,12 @@
+[package]
+name = "phenotype-error-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Core error types for the Eventra phenotype-event-bus crate (local replacement for the upstream phenotype-types repo, which is no longer accessible)."
+
+[dependencies]
+thiserror = { workspace = true }
+serde_json = { workspace = true }
