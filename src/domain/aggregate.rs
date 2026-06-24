@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 
-use super::{Command, Event, error::EventError};
+use super::{error::EventError, Command, Event};
 
 /// Aggregate root trait
 pub trait Aggregate: Send {
@@ -181,7 +181,9 @@ mod tests {
             Event::new("agg-1", "aggregate", "updated", 2, serde_json::json!({})),
         ];
 
-        aggregate.load_from_events(&events).expect("replay succeeds");
+        aggregate
+            .load_from_events(&events)
+            .expect("replay succeeds");
 
         assert_eq!(aggregate.version(), 2);
     }

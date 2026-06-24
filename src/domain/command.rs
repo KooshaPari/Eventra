@@ -27,17 +27,8 @@ impl Command {
 }
 
 /// Command metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CommandMetadata {
     pub user_id: Option<String>,
     pub trace_id: Option<String>,
-}
-
-impl Default for CommandMetadata {
-    fn default() -> Self {
-        Self {
-            user_id: None,
-            trace_id: None,
-        }
-    }
 }

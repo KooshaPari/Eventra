@@ -80,9 +80,9 @@ impl std::fmt::Display for EventStoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SerdeJson(e) => write!(f, "Event store serialization error: {e}"),
-            Self::Io(e)        => write!(f, "Event store I/O error: {e}"),
+            Self::Io(e) => write!(f, "Event store I/O error: {e}"),
             Self::AggregateNotFound(id) => write!(f, "Aggregate not found: {id}"),
-            Self::InvalidInput(msg)     => write!(f, "Invalid input: {msg}"),
+            Self::InvalidInput(msg) => write!(f, "Invalid input: {msg}"),
         }
     }
 }
@@ -91,7 +91,7 @@ impl std::error::Error for EventStoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::SerdeJson(e) => Some(e),
-            Self::Io(e)        => Some(e),
+            Self::Io(e) => Some(e),
             Self::AggregateNotFound(_) | Self::InvalidInput(_) => None,
         }
     }
