@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     ".",
+    "rust/phenotype-error-core",
     "rust/phenotype-event-contracts",
     "rust/phenotype-event-bus",
     "rust/phenotype-event-sourcing",
@@ -28,7 +29,7 @@ ulid = { version = "1", features = ["serde"] }
 dashmap = "6"
 sha2 = "0.10"
 hex = "0.4"
-phenotype-error-core = { git = "https://github.com/KooshaPari/phenotype-types", branch = "main" }
+phenotype-error-core = { path = "rust/phenotype-error-core", version = "0.2.0" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
