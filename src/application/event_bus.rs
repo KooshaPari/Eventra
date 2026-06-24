@@ -90,9 +90,7 @@ impl EventBus for InMemoryEventBus {
         let mut subscribers = self.subscribers.write();
 
         for event_type in &event_types {
-            let entry = subscribers
-                .entry(event_type.clone())
-                .or_insert_with(Vec::new);
+            let entry = subscribers.entry(event_type.clone()).or_default();
             entry.push(Arc::clone(&handler));
         }
 
@@ -145,7 +143,8 @@ mod tests {
         let handler = CountingHandler::default();
         let hits = handler.hits.clone();
 
-        bus.subscribe(Box::new(handler)).expect("subscribe succeeds");
+        bus.subscribe(Box::new(handler))
+            .expect("subscribe succeeds");
 
         let event = Event::new("agg-1", "aggregate", "event.created", 1, json!({}));
         bus.publish(&event).expect("publish succeeds");
