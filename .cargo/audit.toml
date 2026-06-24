@@ -1,0 +1,16 @@
+# cargo-audit configuration
+# https://github.com/rustsec/rustsec/blob/main/cargo-audit/audit.toml.example
+#
+# Ignored advisories are tracked as separate follow-up issues rather than fixed
+# here, because they live in transitive dependencies that require upstream
+# version bumps. Each entry MUST cite a tracking issue.
+
+[advisories]
+ignore = [
+  # RUSTSEC-2026-0185 — Remote memory exhaustion in quinn-proto (unbounded
+  # out-of-order stream reassembly). Pulled in transitively via
+  # reqwest 0.12 -> quinn 0.11.9 -> quinn-proto 0.11.14. Patched in
+  # quinn-proto >=0.11.15, but the upstream version that bundles the patch
+  # has not yet been released. Tracked in issue TBD.
+  "RUSTSEC-2026-0185",
+]
