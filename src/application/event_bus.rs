@@ -90,9 +90,7 @@ impl EventBus for InMemoryEventBus {
         let mut subscribers = self.subscribers.write();
 
         for event_type in &event_types {
-            let entry = subscribers
-                .entry(event_type.clone())
-                .or_insert_with(Vec::new);
+            let entry = subscribers.entry(event_type.clone()).or_default();
             entry.push(Arc::clone(&handler));
         }
 

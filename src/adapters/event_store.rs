@@ -32,7 +32,7 @@ impl EventStore for InMemoryEventStore {
         let mut events = self.events.write();
         let aggregate_events = events
             .entry(event.metadata.aggregate_id.clone())
-            .or_insert_with(Vec::new);
+            .or_default();
 
         // Check version
         if let Some(last) = aggregate_events.last() {
