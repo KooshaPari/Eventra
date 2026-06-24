@@ -145,7 +145,8 @@ mod tests {
         let handler = CountingHandler::default();
         let hits = handler.hits.clone();
 
-        bus.subscribe(Box::new(handler)).expect("subscribe succeeds");
+        bus.subscribe(Box::new(handler))
+            .expect("subscribe succeeds");
 
         let event = Event::new("agg-1", "aggregate", "event.created", 1, json!({}));
         bus.publish(&event).expect("publish succeeds");

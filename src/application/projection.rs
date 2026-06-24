@@ -142,7 +142,11 @@ mod tests {
         // Run on an empty event store — must succeed and not increment the counter.
         runner.run().expect("run with zero events should succeed");
 
-        assert_eq!(*count.lock(), 0, "no events were appended, so count must stay 0");
+        assert_eq!(
+            *count.lock(),
+            0,
+            "no events were appended, so count must stay 0"
+        );
         let state = runner
             .get_state("counter")
             .expect("projection state should exist");
@@ -171,6 +175,9 @@ mod tests {
         let state = runner
             .get_state("counter")
             .expect("projection state should exist");
-        assert_eq!(state.position, 3, "position must advance to last event index + 1");
+        assert_eq!(
+            state.position, 3,
+            "position must advance to last event index + 1"
+        );
     }
 }

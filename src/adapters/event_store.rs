@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 
-use crate::domain::{Event, EventStore, EventError};
+use crate::domain::{Event, EventError, EventStore};
 
 /// In-memory event store adapter
 pub struct InMemoryEventStore {
@@ -30,7 +30,8 @@ impl Default for InMemoryEventStore {
 impl EventStore for InMemoryEventStore {
     fn append(&self, event: &Event) -> Result<(), EventError> {
         let mut events = self.events.write();
-        let aggregate_events = events.entry(event.metadata.aggregate_id.clone())
+        let aggregate_events = events
+            .entry(event.metadata.aggregate_id.clone())
             .or_insert_with(Vec::new);
 
         // Check version
@@ -56,7 +57,8 @@ impl EventStore for InMemoryEventStore {
 
     fn get_events_since(&self, since: DateTime<Utc>) -> Result<Vec<Event>, EventError> {
         let all = self.all_events.read();
-        Ok(all.iter()
+        Ok(all
+            .iter()
             .filter(|e| e.metadata.timestamp > since)
             .cloned()
             .collect())
