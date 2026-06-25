@@ -34,3 +34,7 @@ optional = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+
+[dependencies.tokio]
+workspace = true
+features = ["sync", "time", "rt", "macros"]
