@@ -39,7 +39,10 @@ pub struct OutboxEntry {
 }
 
 impl OutboxEntry {
-    pub fn new(aggregate_id: impl Into<String>, envelope: EventEnvelope<serde_json::Value>) -> Self {
+    pub fn new(
+        aggregate_id: impl Into<String>,
+        envelope: EventEnvelope<serde_json::Value>,
+    ) -> Self {
         Self {
             id: Ulid::new(),
             aggregate_id: aggregate_id.into(),
@@ -136,7 +139,11 @@ impl OutboxStore for InMemoryOutbox {
     }
 
     async fn mark_published(&mut self, id: Ulid) -> Result<(), OutboxError> {
-        let row = self.rows.iter_mut().find(|r| r.id == id).ok_or(OutboxError::NotFound(id))?;
+        let row = self
+            .rows
+            .iter_mut()
+            .find(|r| r.id == id)
+            .ok_or(OutboxError::NotFound(id))?;
         if row.published_at.is_none() {
             row.published_at = Some(Utc::now());
         }
@@ -144,14 +151,22 @@ impl OutboxStore for InMemoryOutbox {
     }
 
     async fn record_failure(&mut self, id: Ulid, err: &str) -> Result<(), OutboxError> {
-        let row = self.rows.iter_mut().find(|r| r.id == id).ok_or(OutboxError::NotFound(id))?;
+        let row = self
+            .rows
+            .iter_mut()
+            .find(|r| r.id == id)
+            .ok_or(OutboxError::NotFound(id))?;
         row.attempt = row.attempt.saturating_add(1);
         row.last_error = Some(err.to_string());
         Ok(())
     }
 
     async fn pending_count(&self) -> Result<u64, OutboxError> {
-        Ok(self.rows.iter().filter(|r| r.published_at.is_none()).count() as u64)
+        Ok(self
+            .rows
+            .iter()
+            .filter(|r| r.published_at.is_none())
+            .count() as u64)
     }
 }
 
@@ -237,9 +252,7 @@ pub mod postgres {
         /// ```
         pub async fn transactional<F, Fut, T>(&self, f: F) -> Result<T, OutboxError>
         where
-            F: for<'c> FnOnce(
-                &'c mut sqlx::Transaction<'_, Postgres>,
-            ) -> Fut,
+            F: for<'c> FnOnce(&'c mut sqlx::Transaction<'_, Postgres>) -> Fut,
             Fut: std::future::Future<Output = Result<T, OutboxError>>,
         {
             let mut tx = self
@@ -321,10 +334,8 @@ pub mod postgres {
     #[async_trait]
     impl OutboxStore for PostgresOutbox {
         async fn enqueue(&mut self, entry: OutboxEntry) -> Result<(), OutboxError> {
-            self.transactional(|tx| async move {
-                Self::enqueue_in_tx(tx, entry).await
-            })
-            .await
+            self.transactional(|tx| async move { Self::enqueue_in_tx(tx, entry).await })
+                .await
         }
 
         async fn claim_batch(&mut self, limit: usize) -> Result<Vec<OutboxEntry>, OutboxError> {
@@ -397,10 +408,11 @@ pub mod postgres {
         }
 
         async fn pending_count(&self) -> Result<u64, OutboxError> {
-            let row = sqlx::query("SELECT COUNT(*)::BIGINT AS c FROM outbox WHERE published_at IS NULL")
-                .fetch_one(&self.pool)
-                .await
-                .map_err(map_err)?;
+            let row =
+                sqlx::query("SELECT COUNT(*)::BIGINT AS c FROM outbox WHERE published_at IS NULL")
+                    .fetch_one(&self.pool)
+                    .await
+                    .map_err(map_err)?;
             let c: i64 = row.try_get("c").map_err(map_err)?;
             Ok(c.max(0) as u64)
         }

@@ -225,7 +225,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::outbox::{InMemoryOutbox, OutboxStore, OutboxEntry};
+    use crate::outbox::{InMemoryOutbox, OutboxEntry, OutboxStore};
     use std::sync::atomic::{AtomicU64, Ordering};
     use ulid::Ulid;
 
@@ -274,10 +274,7 @@ mod tests {
         });
         // Enqueue 3 entries.
         for i in 0..3 {
-            let entry = OutboxEntry::new(
-                Ulid::new(),
-                serde_json::json!({"i": i}),
-            );
+            let entry = OutboxEntry::new(Ulid::new(), serde_json::json!({"i": i}));
             store.enqueue(entry).await.unwrap();
         }
         let cfg = RelayConfig {
@@ -288,7 +285,9 @@ mod tests {
             max_runtime: Some(Duration::from_millis(200)),
         };
         let shutdown = new_shutdown_token();
-        let stats = run(store.clone(), publisher.clone(), cfg, shutdown).await.unwrap();
+        let stats = run(store.clone(), publisher.clone(), cfg, shutdown)
+            .await
+            .unwrap();
         assert_eq!(stats.published, 3);
         assert_eq!(stats.failed, 0);
         assert_eq!(counter.load(Ordering::SeqCst), 3);
@@ -305,10 +304,7 @@ mod tests {
             attempts_clone.fetch_add(1, Ordering::SeqCst);
             Err("downstream down".to_string())
         });
-        let entry = OutboxEntry::new(
-            Ulid::new(),
-            serde_json::json!({"topic": "orders"}),
-        );
+        let entry = OutboxEntry::new(Ulid::new(), serde_json::json!({"topic": "orders"}));
         store.enqueue(entry).await.unwrap();
         let cfg = RelayConfig {
             workers: 1,
