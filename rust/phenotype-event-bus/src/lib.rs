@@ -8,6 +8,9 @@ use ulid::Ulid;
 pub mod outbox;
 pub use outbox::{InMemoryOutbox, OutboxEntry, OutboxError, OutboxStore};
 
+#[cfg(feature = "postgres")]
+pub use outbox::postgres as outbox_postgres;
+
 /// Event ID using ULID for sortability
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, serde::Deserialize)]
 pub struct EventId(Ulid);

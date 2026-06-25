@@ -19,6 +19,18 @@ ulid = { workspace = true }
 dashmap = { workspace = true }
 phenotype-error-core = { workspace = true }
 chrono = { workspace = true }
+tracing = { workspace = true }
+
+[features]
+default = []
+# Postgres-backed OutboxStore (EVE-SOTA-002). Adds sqlx + tokio-postgres.
+postgres = ["dep:sqlx"]
+
+[dependencies.sqlx]
+version = "0.8"
+default-features = false
+features = ["runtime-tokio-rustls", "postgres", "macros", "chrono", "uuid", "json"]
+optional = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
