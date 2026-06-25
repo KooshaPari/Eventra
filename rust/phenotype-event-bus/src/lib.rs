@@ -5,6 +5,18 @@ use std::fmt::Debug;
 use thiserror::Error;
 use ulid::Ulid;
 
+pub mod outbox;
+pub use outbox::{InMemoryOutbox, OutboxEntry, OutboxError, OutboxStore};
+
+pub mod outbox_relay;
+pub use outbox_relay::{
+    new_shutdown_token, run as run_outbox_relay, spawn_workers as spawn_outbox_relay_workers,
+    Publisher as OutboxPublisher, RelayConfig, RelayStats, Shutdown as OutboxShutdown,
+};
+
+#[cfg(feature = "postgres")]
+pub use outbox::postgres as outbox_postgres;
+
 /// Event ID using ULID for sortability
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, serde::Deserialize)]
 pub struct EventId(Ulid);
