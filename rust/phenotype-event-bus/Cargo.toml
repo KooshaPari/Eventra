@@ -25,11 +25,15 @@ tracing = { workspace = true }
 default = []
 # Postgres-backed OutboxStore (EVE-SOTA-002). Adds sqlx + tokio-postgres.
 postgres = ["dep:sqlx"]
+# SQLite-backed OutboxStore (EVE-SOTA-004). Adds sqlx (sqlite feature)
+# for embedded/dev/test usage. Mirrors the Postgres adapter contract
+# (OutboxStore trait impl + transactional helper + MIGRATION_SQL).
+sqlite = ["dep:sqlx"]
 
 [dependencies.sqlx]
 version = "0.8"
 default-features = false
-features = ["runtime-tokio-rustls", "postgres", "macros", "chrono", "uuid", "json"]
+features = ["runtime-tokio-rustls", "macros", "chrono", "json"]
 optional = true
 
 [dev-dependencies]

@@ -17,6 +17,11 @@ pub use outbox_relay::{
 #[cfg(feature = "postgres")]
 pub use outbox::postgres as outbox_postgres;
 
+#[cfg(feature = "sqlite")]
+pub mod outbox_sqlite;
+#[cfg(feature = "sqlite")]
+pub use outbox_sqlite::{SqliteOutbox, SqlitePool};
+
 /// Event ID using ULID for sortability
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, serde::Deserialize)]
 pub struct EventId(Ulid);
