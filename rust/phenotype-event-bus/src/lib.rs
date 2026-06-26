@@ -44,7 +44,7 @@ impl std::fmt::Display for EventId {
 }
 
 /// Event envelope with metadata
-#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub struct EventEnvelope<T: Clone> {
     pub id: EventId,
     pub timestamp: u64,
