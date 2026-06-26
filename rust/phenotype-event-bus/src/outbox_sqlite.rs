@@ -168,15 +168,11 @@ impl SqliteOutbox {
 
 #[async_trait]
 impl OutboxStore for SqliteOutbox {
-    fn kind(&self) -> OutboxStoreKind {
-        OutboxStoreKind::Sqlite
-    }
-
     /// Enqueue an entry in its own implicit transaction. For atomic
     /// aggregate-mutation + outbox writes, use `transactional` +
     /// `enqueue_in_tx` instead.
     #[instrument(skip(self, entry), fields(outbox.id = %entry.id))]
-    async fn enqueue(&self, entry: OutboxEntry) -> Result<(), OutboxError> {
+    async fn enqueue(&mut self, entry: OutboxEntry) -> Result<(), OutboxError> {
         let mut guard = self
             .inner
             .lock()
@@ -207,7 +203,7 @@ impl OutboxStore for SqliteOutbox {
 
     #[instrument(skip(self), fields(batch_size = batch_size))]
     async fn claim_batch(
-        &self,
+        &mut self,
         batch_size: usize,
     ) -> Result<ClaimedBatch, OutboxError> {
         let mut guard = self
@@ -288,7 +284,7 @@ impl OutboxStore for SqliteOutbox {
     }
 
     #[instrument(skip(self), fields(outbox.id = %id))]
-    async fn mark_published(&self, id: ulid::Ulid) -> Result<(), OutboxError> {
+    async fn mark_published(&mut self, id: ulid::Ulid) -> Result<(), OutboxError> {
         let mut guard = self
             .inner
             .lock()
@@ -310,7 +306,7 @@ impl OutboxStore for SqliteOutbox {
 
     #[instrument(skip(self, err), fields(outbox.id = %id))]
     async fn record_failure(
-        &self,
+        &mut self,
         id: ulid::Ulid,
         err: &str,
     ) -> Result<(), OutboxError> {

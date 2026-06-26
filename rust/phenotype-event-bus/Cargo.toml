@@ -20,15 +20,16 @@ dashmap = { workspace = true }
 phenotype-error-core = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
 
 [features]
 default = []
 # Postgres-backed OutboxStore (EVE-SOTA-002). Adds sqlx + tokio-postgres.
 postgres = ["dep:sqlx"]
-# SQLite-backed OutboxStore (EVE-SOTA-004). Adds sqlx (sqlite feature)
-# for embedded/dev/test usage. Mirrors the Postgres adapter contract
+# SQLite-backed OutboxStore (EVE-SOTA-004). Adds rusqlite (bundled) for
+# embedded/dev/test usage. Mirrors the Postgres adapter contract
 # (OutboxStore trait impl + transactional helper + MIGRATION_SQL).
-sqlite = ["dep:sqlx"]
+sqlite = ["dep:rusqlite"]
 
 [dependencies.sqlx]
 version = "0.8"
@@ -38,3 +39,5 @@ optional = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+futures = { workspace = true }
+tempfile = { workspace = true }
