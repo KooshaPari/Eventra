@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ulid::Ulid;
 
-use super::{EventEnvelope, EventId};
+use super::EventEnvelope;
 
 /// A row in the outbox table. The `id` is the dedup key for consumers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -498,7 +498,7 @@ mod tests {
     }
 
     #[tokio::test]
-    fn outbox_entry_id_is_unique_per_call() {
+    async fn outbox_entry_id_is_unique_per_call() {
         let e1 = OutboxEntry::new("a", envelope());
         let e2 = OutboxEntry::new("a", envelope());
         assert_ne!(e1.id, e2.id);

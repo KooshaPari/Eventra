@@ -30,12 +30,12 @@
 //!
 //! DAG unit: EVE-SOTA-003.
 
-use crate::outbox::{OutboxEntry, OutboxError, OutboxStore};
+use crate::outbox::{OutboxError, OutboxStore};
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Notify;
-use tokio::time::sleep;
+use tokio::sync::{Mutex, Notify};
+use tokio::time::{sleep, timeout};
 
 /// User-provided publisher. Receives the deserialized envelope and
 /// returns `Ok(())` on success or `Err(String)` (which becomes a
@@ -118,7 +118,7 @@ pub fn backoff_for(attempt: u32, max_backoff: Duration) -> Duration {
 /// 2. `config.max_runtime` elapses (if set)
 /// 3. The store returns a non-retryable error (poisoned)
 pub async fn run<S, P>(
-    store: Arc<S>,
+    store: Arc<Mutex<S>>,
     publisher: Arc<P>,
     config: RelayConfig,
     shutdown: Shutdown,
@@ -142,7 +142,10 @@ where
         // Single worker (the multi-worker concurrency comes from a
         // higher-level supervisor; the relay's worker fan-out is
         // implemented at the call site if desired).
-        let batch = store.claim_batch(config.batch_size).await?;
+        let batch = {
+            let mut store = store.lock().await;
+            store.claim_batch(config.batch_size as usize).await?
+        };
         if batch.is_empty() {
             stats.empty_polls += 1;
             // Wait for either the idle interval or shutdown.
@@ -154,23 +157,26 @@ where
 
         for entry in batch {
             // Per-entry: re-check shutdown to exit fast on large batches.
-            if shutdown.notified().now_or_never().is_some() {
+            if timeout(Duration::from_millis(0), shutdown.notified())
+                .await
+                .is_ok()
+            {
                 break 'outer;
             }
 
-            // Decode the stored envelope back to a serde_json::Value.
-            // OutboxEntry stores it as `envelope: serde_json::Value`
-            // (the in-memory) or as JSONB (the Postgres adapter); both
-            // paths yield a Value here.
-            let envelope_value = entry.envelope.clone();
+            // Publish just the payload; the envelope metadata stays in
+            // the outbox row for auditing and deduplication.
+            let envelope_value = entry.envelope.payload.clone();
 
             match publisher.publish(&envelope_value) {
                 Ok(()) => {
+                    let mut store = store.lock().await;
                     store.mark_published(entry.id).await?;
                     stats.published += 1;
                 }
                 Err(err) => {
                     let attempt = entry.attempt + 1;
+                    let mut store = store.lock().await;
                     store.record_failure(entry.id, &err).await?;
                     stats.failed += 1;
                     if attempt >= max_attempts {
@@ -202,7 +208,7 @@ where
 /// + publisher. Returns the JoinHandle of each worker so the supervisor
 /// can cancel them on shutdown.
 pub fn spawn_workers<S, P>(
-    store: Arc<S>,
+    store: Arc<Mutex<S>>,
     publisher: Arc<P>,
     config: RelayConfig,
     shutdown: Shutdown,
@@ -226,6 +232,7 @@ where
 mod tests {
     use super::*;
     use crate::outbox::{InMemoryOutbox, OutboxEntry, OutboxStore};
+    use crate::EventEnvelope;
     use std::sync::atomic::{AtomicU64, Ordering};
     use ulid::Ulid;
 
@@ -242,7 +249,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_publishes_all_empty_store_yields_zero_stats() {
-        let store = Arc::new(InMemoryOutbox::new());
+        let store = Arc::new(Mutex::new(InMemoryOutbox::new()));
         let counter = Arc::new(AtomicU64::new(0));
         let counter_clone = counter.clone();
         let publisher = Arc::new(move |_: &Value| -> Result<(), String> {
@@ -265,7 +272,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_publishes_pending_entries_and_marks_published() {
-        let store = Arc::new(InMemoryOutbox::new());
+        let store = Arc::new(Mutex::new(InMemoryOutbox::new()));
         let counter = Arc::new(AtomicU64::new(0));
         let counter_clone = counter.clone();
         let publisher = Arc::new(move |_: &Value| -> Result<(), String> {
@@ -274,8 +281,11 @@ mod tests {
         });
         // Enqueue 3 entries.
         for i in 0..3 {
-            let entry = OutboxEntry::new(Ulid::new(), serde_json::json!({"i": i}));
-            store.enqueue(entry).await.unwrap();
+            let entry = OutboxEntry::new(
+                Ulid::new(),
+                EventEnvelope::new("test-source", serde_json::json!({"i": i})),
+            );
+            store.lock().await.enqueue(entry).await.unwrap();
         }
         let cfg = RelayConfig {
             workers: 1,
@@ -291,12 +301,12 @@ mod tests {
         assert_eq!(stats.published, 3);
         assert_eq!(stats.failed, 0);
         assert_eq!(counter.load(Ordering::SeqCst), 3);
-        assert_eq!(store.pending_count().await.unwrap(), 0);
+        assert_eq!(store.lock().await.pending_count().await.unwrap(), 0);
     }
 
     #[tokio::test]
     async fn run_records_failure_and_does_not_republish_in_same_cycle() {
-        let store = Arc::new(InMemoryOutbox::new());
+        let store = Arc::new(Mutex::new(InMemoryOutbox::new()));
         let attempts = Arc::new(AtomicU64::new(0));
         let attempts_clone = attempts.clone();
         // Always-failing publisher.
@@ -304,8 +314,11 @@ mod tests {
             attempts_clone.fetch_add(1, Ordering::SeqCst);
             Err("downstream down".to_string())
         });
-        let entry = OutboxEntry::new(Ulid::new(), serde_json::json!({"topic": "orders"}));
-        store.enqueue(entry).await.unwrap();
+        let entry = OutboxEntry::new(
+            Ulid::new(),
+            EventEnvelope::new("test-source", serde_json::json!({"topic": "orders"})),
+        );
+        store.lock().await.enqueue(entry).await.unwrap();
         let cfg = RelayConfig {
             workers: 1,
             batch_size: 10,
@@ -318,12 +331,12 @@ mod tests {
         assert_eq!(stats.published, 0);
         assert!(stats.failed >= 1);
         // Entry still pending (not published, recorded failure).
-        assert_eq!(store.pending_count().await.unwrap(), 1);
+        assert_eq!(store.lock().await.pending_count().await.unwrap(), 1);
     }
 
     #[tokio::test]
     async fn shutdown_signal_breaks_run_quickly() {
-        let store = Arc::new(InMemoryOutbox::new());
+        let store = Arc::new(Mutex::new(InMemoryOutbox::new()));
         let publisher = Arc::new(|_: &Value| -> Result<(), String> { Ok(()) });
         let cfg = RelayConfig {
             workers: 1,
