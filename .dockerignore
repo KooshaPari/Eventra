@@ -1,0 +1,7 @@
+target/
+.git/
+.grade-reports/
+**/*.log
+.env
+agileplus-specs/
+assets/
