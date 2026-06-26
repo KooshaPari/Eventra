@@ -1,0 +1,22 @@
+# Eventra local deploy stack (optional)
+# Usage: docker compose up --build
+
+services:
+  eventkit-health:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${EVENTKIT_HEALTH_PORT:-8080}:8080"
+    environment:
+      RUST_LOG: ${RUST_LOG:-info,eventkit=debug}
+      EVENTKIT_LOG_FORMAT: ${EVENTKIT_LOG_FORMAT:-plain}
+      EVENTKIT_HEALTHCHECK_TIMEOUT_MS: ${EVENTKIT_HEALTHCHECK_TIMEOUT_MS:-3000}
+    healthcheck:
+      test: ["CMD", "eventkit-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 30s
+    restart: unless-stopped
