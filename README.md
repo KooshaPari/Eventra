@@ -1,3 +1,17 @@
+Work state: ACTIVE | Progress: [████████░░] 8/10
+
+Eventra is an event-driven Rust framework for CQRS and event sourcing, organized around hexagonal architecture with a clean split between domain, application, and adapter layers. It provides in-memory building blocks today and is structured to grow into durable event stores, buses, and projections without forcing application code to depend on infrastructure details.
+
+## Usage / Quickstart
+
+```bash
+git clone https://github.com/KooshaPari/Eventra.git
+cd Eventra
+cargo test
+```
+
+Use the crate from your app by adding it to `Cargo.toml`, then wiring your command handlers, event store, and projections through the provided traits and adapters.
+
 <!-- Work-state: alpha — [##--------] 25% — ports defined, in-mem store + bus, no persistence, no tests -->
 
 <!-- AI-DD-META:START -->
