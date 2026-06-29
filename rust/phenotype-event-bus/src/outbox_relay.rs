@@ -206,7 +206,7 @@ where
 
 /// Convenience: spawn `workers` parallel `run` loops on the same store
 /// + publisher. Returns the JoinHandle of each worker so the supervisor
-/// can cancel them on shutdown.
+///   can cancel them on shutdown.
 pub fn spawn_workers<S, P>(
     store: Arc<Mutex<S>>,
     publisher: Arc<P>,

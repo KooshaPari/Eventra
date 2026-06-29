@@ -7,8 +7,6 @@ use ulid::Ulid;
 
 pub mod outbox;
 pub use outbox::*;
-pub mod outbox_sqlite;
-pub use outbox_sqlite::*;
 pub mod outbox_relay;
 pub use outbox_relay::*;
 pub mod outbox_metrics;
@@ -17,14 +15,18 @@ pub use outbox_metrics::*;
 #[cfg(feature = "postgres")]
 pub use outbox::postgres as outbox_postgres;
 
-#[cfg(feature = "sqlite")]
-pub mod outbox_sqlite2 {
-    //! Re-export of the SqliteOutbox implementation; the canonical
-    //! module is `outbox_sqlite` (declared above). This alias is
-    //! provided for callers that prefer the `outbox::sqlite` path.
-}
-#[cfg(feature = "sqlite")]
-pub use outbox_sqlite::{SqliteOutbox, SqlitePool};
+// Note: a SQLite-backed OutboxStore adapter was attempted as EVE-SOTA-004
+// using `rusqlite`, but the adapter referenced symbols (ClaimedBatch /
+// OutboxStoreKind / StorageExt / aggregate_root / SqlitePool) that were
+// never defined in this crate, and the `OutboxStore` trait signatures it
+// was written against diverged from the canonical `OutboxStore` defined
+// in `outbox`. The Postgres adapter (`outbox::postgres::PostgresOutbox`,
+// enabled via `--features postgres`) provides a complete, tested
+// `OutboxStore` implementation and is the supported database option
+// today. A follow-up SQLite adapter should either (a) target the same
+// `sqlx` stack Postgres uses (sqlite feature flag, `&mut self` trait
+// impl) or (b) be rewritten as a standalone module gated on
+// `--features sqlite` with its own minimal trait surface.
 
 /// Event ID using ULID for sortability
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, serde::Deserialize)]
