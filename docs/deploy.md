@@ -1,100 +1,96 @@
-# Deploying Eventra / eventkit
+# Deploying Eventra
 
-This guide covers container deployment, health probes, configuration, and graceful shutdown for services built on the Eventra Rust workspace.
+This guide covers the runtime pieces that are actually shipped in this workspace: the `eventkit` framework crate, the `eventkit-obs` healthcheck binary, and the `phenotype-event-bus` outbox relay support.
 
 ## Prerequisites
 
-- Rust 1.75+ (see `rust-toolchain.toml`)
-- Docker 24+ (for container deploy)
-- Copy `.env.example` to `.env` and adjust non-secret settings
+- Rust 1.75+ from `rust-toolchain.toml`
+- Docker 24+ if you want the container image or Compose stack
+- A local copy of `.env.example` if you want a filled-out environment file
 
-## Quick local smoke
+## Build and run locally
+
+The workspace is library-first, so the normal way to work with it is to build the workspace and run the healthcheck binary from `eventkit-obs`.
 
 ```bash
-# Build healthcheck CLI from the observability crate
-cd rust/eventkit-obs
-cargo build --release
-
-# Liveness (library-only mode — exits 0, prints JSON health report)
-./target/release/eventkit-healthcheck
+cargo build --workspace
+cargo run -p eventkit-obs --bin eventkit-healthcheck
 ```
 
-## Docker (multi-stage)
+To probe a running HTTP endpoint instead of using the library-only mode:
+
+```bash
+cargo run -p eventkit-obs --bin eventkit-healthcheck -- http://127.0.0.1:8080/health
+```
+
+## Docker
+
+The repo includes a multi-stage Dockerfile and a Compose service for the healthcheck container.
 
 ```bash
 docker build -t eventra/eventkit:latest .
 docker run --rm eventra/eventkit:latest
-```
-
-Or with Compose:
-
-```bash
 docker compose up --build
 ```
 
-The image ships `eventkit-healthcheck` as the entrypoint. Override `CMD` to probe an HTTP endpoint:
-
-```bash
-docker run --rm eventra/eventkit:latest http://127.0.0.1:8080/health
-```
+The `docker-compose.yml` service exposes port `8080`, sets the tracing and health-check environment variables, and uses `eventkit-healthcheck` as the container healthcheck command.
 
 ## Health and readiness
 
-| Endpoint / command | Purpose | When to use |
-|---|---|---|
-| `eventkit-healthcheck` (no args) | Liveness — process alive | Library-only, sidecars |
-| `GET /health` | Liveness — HTTP JSON report | Service binaries with `http-health` feature |
-| `GET /ready` | Readiness — dependencies OK | Before routing traffic |
-| `eventkit-healthcheck http://host:8080/ready` | CLI readiness probe | K8s `exec` probes, CI |
+`eventkit-healthcheck` supports two modes:
 
-Example Kubernetes probes:
+- No argument: library-only liveness check, exits `0` when the binary starts and the probe completes.
+- URL argument: HTTP probe mode against `/health` or `/ready`.
 
-```yaml
-livenessProbe:
-  exec:
-    command: ["eventkit-healthcheck"]
-  initialDelaySeconds: 10
-  periodSeconds: 30
-readinessProbe:
-  httpGet:
-    path: /ready
-    port: 8080
-  initialDelaySeconds: 5
-  periodSeconds: 10
-```
+The `eventkit-obs` crate also ships an optional HTTP health server behind the `http-health` feature.
+
+Recommended orchestrator settings:
+
+- `terminationGracePeriodSeconds: 30`
+- send `SIGTERM` first, then `SIGKILL` only if shutdown exceeds the grace period
+
+## Outbox relay runtime
+
+The transactional outbox relay in `phenotype-event-bus` is the long-lived worker you need to plan for during deployment.
+
+### Data flow
+
+1. A command handler writes the domain mutation and an `OutboxEntry` in the same database transaction.
+2. `OutboxRelay` claims unpublished rows from an `OutboxStore`.
+3. The relay hands each row to a user-provided publisher closure or trait implementation.
+4. On success, the row is marked published.
+5. On failure, the row records the error and attempt count, then backs off before retrying.
+
+### Storage backends
+
+- `InMemoryOutbox` is for tests and single-process development only.
+- `SqliteOutbox` is the embedded/dev adapter and works best for single-writer scenarios.
+- `PostgresOutbox` is the durable multi-worker adapter and uses `SELECT ... FOR UPDATE SKIP LOCKED` to prevent duplicate claims.
+
+### Operational rules
+
+- Use one database transaction for the domain mutation and the outbox insert.
+- Treat `OutboxEntry::id` as the consumer deduplication key.
+- Keep publishers idempotent.
+- Size relay shutdown time so it can finish the current batch and flush in-flight rows.
 
 ## Configuration
 
-All settings are environment variables — see [`.env.example`](../.env.example). No secrets are committed.
+See [`.env.example`](../.env.example) for the current environment variables.
 
-| Variable | Default | Description |
-|---|---|---|
-| `RUST_LOG` | `info,eventkit=debug,...` | tracing filter |
-| `EVENTKIT_LOG_FORMAT` | `plain` | `plain` or `json` |
-| `EVENTKIT_HEALTH_PORT` | `8080` | HTTP health server bind port |
-| `EVENTKIT_HEALTHCHECK_TIMEOUT_MS` | `3000` | CLI HTTP probe timeout |
+Relevant settings include:
 
-## Graceful shutdown
+- `RUST_LOG`
+- `EVENTKIT_LOG_FORMAT`
+- `EVENTKIT_HEALTH_PORT`
+- `EVENTKIT_HEALTHCHECK_TIMEOUT_MS`
+- `OUTBOX_POLL_INTERVAL_MS`
+- `OUTBOX_BATCH_SIZE`
+- `OUTBOX_SHUTDOWN_TIMEOUT_SECS`
 
-Eventra components that run long-lived workers (e.g. `phenotype-event-bus` outbox relay) should:
+## Related docs
 
-1. **Trap SIGTERM and SIGINT** — Tokio services use `tokio::signal` (see `rust/eventkit-obs/src/http_health.rs`).
-2. **Stop accepting new work** — close subscriptions / HTTP listeners first.
-3. **Drain in-flight events** — allow the outbox relay `Shutdown` token to flush pending publishes.
-4. **Bound wait time** — use `OUTBOX_SHUTDOWN_TIMEOUT_SECS` (default 30) then exit.
-
-Container orchestrators:
-
-- Set `terminationGracePeriodSeconds` ≥ 30 (matches `docker-compose.yml` `stop_grace_period`).
-- Send SIGTERM before SIGKILL; the Dockerfile sets `STOPSIGNAL SIGTERM`.
-
-## CI / release
-
-GitHub Actions runs `cargo test --all` on push (`.github/workflows/ci.yml`). For production images, pin the Rust toolchain digest and enable SLSA attestation (see `docs/slsa.md`).
-
-## Further integration
-
-Wire the `eventkit-obs` crate into the workspace and service binaries — exact diffs in:
-
-- [`docs/remediation/OBSERVABILITY.md`](remediation/OBSERVABILITY.md)
+- [`README.md`](../README.md)
+- [`docs/disposition/phenotype-event-bus-runtime-boundary.md`](disposition/phenotype-event-bus-runtime-boundary.md)
 - [`docs/remediation/OPS.md`](remediation/OPS.md)
+- [`docs/remediation/OBSERVABILITY.md`](remediation/OBSERVABILITY.md)
