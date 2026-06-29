@@ -6,16 +6,25 @@ use thiserror::Error;
 use ulid::Ulid;
 
 pub mod outbox;
-pub use outbox::{InMemoryOutbox, OutboxEntry, OutboxError, OutboxStore};
-
+pub use outbox::*;
+pub mod outbox_sqlite;
+pub use outbox_sqlite::*;
 pub mod outbox_relay;
-pub use outbox_relay::{
-    new_shutdown_token, run as run_outbox_relay, spawn_workers as spawn_outbox_relay_workers,
-    Publisher as OutboxPublisher, RelayConfig, RelayStats, Shutdown as OutboxShutdown,
-};
+pub use outbox_relay::*;
+pub mod outbox_metrics;
+pub use outbox_metrics::*;
 
 #[cfg(feature = "postgres")]
 pub use outbox::postgres as outbox_postgres;
+
+#[cfg(feature = "sqlite")]
+pub mod outbox_sqlite2 {
+    //! Re-export of the SqliteOutbox implementation; the canonical
+    //! module is `outbox_sqlite` (declared above). This alias is
+    //! provided for callers that prefer the `outbox::sqlite` path.
+}
+#[cfg(feature = "sqlite")]
+pub use outbox_sqlite::{SqliteOutbox, SqlitePool};
 
 /// Event ID using ULID for sortability
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, serde::Deserialize)]
