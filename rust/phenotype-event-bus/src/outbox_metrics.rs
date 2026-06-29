@@ -66,7 +66,11 @@ impl OutboxMetricOutcome {
 }
 
 impl OutboxMetricLabels {
-    pub fn new(publisher: impl Into<Arc<str>>, outcome: OutboxMetricOutcome, env: impl Into<Arc<str>>) -> Self {
+    pub fn new(
+        publisher: impl Into<Arc<str>>,
+        outcome: OutboxMetricOutcome,
+        env: impl Into<Arc<str>>,
+    ) -> Self {
         Self {
             publisher: publisher.into(),
             outcome,
@@ -116,13 +120,16 @@ impl OutboxMetrics {
             OutboxMetricOutcome::Claimed => self.claimed.fetch_add(1, Ordering::Relaxed),
             OutboxMetricOutcome::Published => self.published.fetch_add(1, Ordering::Relaxed),
             OutboxMetricOutcome::Retried => self.retried.fetch_add(1, Ordering::Relaxed),
-            OutboxMetricOutcome::FailedTerminal => self.failed_terminal.fetch_add(1, Ordering::Relaxed),
+            OutboxMetricOutcome::FailedTerminal => {
+                self.failed_terminal.fetch_add(1, Ordering::Relaxed)
+            }
         };
     }
 
     /// Record the timestamp of the most recent successful batch.
     pub fn record_batch(&self, unix_millis: u64) {
-        self.last_batch_unix_millis.store(unix_millis, Ordering::Relaxed);
+        self.last_batch_unix_millis
+            .store(unix_millis, Ordering::Relaxed);
     }
 
     pub fn snapshot(&self) -> OutboxMetricsSnapshot {
@@ -141,11 +148,10 @@ impl OutboxMetrics {
     /// Prometheus text-format export.
     pub fn to_prometheus_text(&self) -> String {
         let s = self.snapshot();
-        let avg_latency_us = if s.published > 0 {
-            s.publish_latency_micros_total / s.published
-        } else {
-            0
-        };
+        let avg_latency_us = s
+            .publish_latency_micros_total
+            .checked_div(s.published)
+            .unwrap_or(0);
         format!(
             "# HELP phenotype_event_bus_outbox_enqueued_total Total events enqueued to outbox\n\
              # TYPE phenotype_event_bus_outbox_enqueued_total counter\n\
@@ -250,7 +256,12 @@ impl OutboxSpan {
         )
     }
 
-    pub fn enter_record_failure(publisher: Arc<str>, event_id: &str, attempt: u64, max_attempts: u64) -> tracing::Span {
+    pub fn enter_record_failure(
+        publisher: Arc<str>,
+        event_id: &str,
+        attempt: u64,
+        max_attempts: u64,
+    ) -> tracing::Span {
         tracing::info_span!(
             "outbox.record_failure",
             otel.kind = "internal",
@@ -352,7 +363,10 @@ mod tests {
         assert_eq!(OutboxMetricOutcome::Claimed.as_str(), "claimed");
         assert_eq!(OutboxMetricOutcome::Published.as_str(), "published");
         assert_eq!(OutboxMetricOutcome::Retried.as_str(), "retried");
-        assert_eq!(OutboxMetricOutcome::FailedTerminal.as_str(), "failed_terminal");
+        assert_eq!(
+            OutboxMetricOutcome::FailedTerminal.as_str(),
+            "failed_terminal"
+        );
     }
 
     #[test]
