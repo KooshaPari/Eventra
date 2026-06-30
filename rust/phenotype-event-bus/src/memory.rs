@@ -7,7 +7,14 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
-/// In-memory event bus for testing
+/// In-memory event bus for testing.
+///
+/// **PoC / test-only.** This bus routes events through in-process
+/// `tokio::sync::mpsc` channels. It loses all subscriber registrations and
+/// in-flight events on drop. Use it for unit/integration tests and local
+/// PoC code only. For durable, at-least-once delivery, use the transactional
+/// outbox (`OutboxStore` + `OutboxRelay`) with a SQLite or Postgres backend.
+#[doc(alias = "test-only")]
 pub struct InMemoryEventBus<T: Serialize + DeserializeOwned + Send + Sync + Clone + Debug + 'static>
 {
     subscribers: Arc<DashMap<String, Vec<mpsc::UnboundedSender<EventEnvelope<T>>>>>,
@@ -88,12 +95,15 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + Clone + Debug + 'static> Ev
             .or_default()
             .push(tx);
 
+        // Clone `subject` before the spawn: the trait method takes `&str` which
+        // cannot outlive `'static` as required by `tokio::spawn`.
+        let subject_owned = subject.to_string();
         // Spawn handler task
         tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
                 let event_span = tracing::info_span!(
                     "event_bus.handle",
-                    subject = %subject,
+                    subject = %subject_owned,
                     event_id = %event.id,
                     correlation_id = %event.correlation_id.clone().unwrap_or_else(|| "none".to_string()),
                 );

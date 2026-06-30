@@ -539,8 +539,8 @@ pub mod sqlite {
 
         let aggregate_id: String = row.try_get("aggregate_id").map_err(map_err)?;
         let envelope_text: String = row.try_get("envelope").map_err(map_err)?;
-        let envelope: EventEnvelope<serde_json::Value> = serde_json::from_str(&envelope_text)
-            .map_err(|e| OutboxError::Serde(e.to_string()))?;
+        let envelope: EventEnvelope<serde_json::Value> =
+            serde_json::from_str(&envelope_text).map_err(|e| OutboxError::Serde(e.to_string()))?;
         let created_at_ms: i64 = row.try_get("created_at").map_err(map_err)?;
         let created_at = chrono::DateTime::<Utc>::from_timestamp_millis(created_at_ms)
             .ok_or_else(|| OutboxError::Storage("invalid created_at timestamp".into()))?;
@@ -565,15 +565,12 @@ pub mod sqlite {
     #[async_trait]
     impl OutboxStore for SqliteOutbox {
         async fn enqueue(&mut self, entry: OutboxEntry) -> Result<(), OutboxError> {
-            self.transactional(|tx| async move { Self::enqueue_in_tx(tx, entry).await }).await
+            self.transactional(|tx| async move { Self::enqueue_in_tx(tx, entry).await })
+                .await
         }
 
         async fn claim_batch(&mut self, limit: usize) -> Result<Vec<OutboxEntry>, OutboxError> {
-            let mut tx = self
-                .pool
-                .begin()
-                .await
-                .map_err(map_err)?;
+            let mut tx = self.pool.begin().await.map_err(map_err)?;
 
             let rows = sqlx::query(
                 r#"
@@ -592,13 +589,11 @@ pub mod sqlite {
 
             for row in &rows {
                 let id_bytes: Vec<u8> = row.try_get("id").map_err(map_err)?;
-                sqlx::query(
-                    "UPDATE outbox SET attempt = attempt + 1 WHERE id = ?1",
-                )
-                .bind(id_bytes)
-                .execute(&mut *tx)
-                .await
-                .map_err(map_err)?;
+                sqlx::query("UPDATE outbox SET attempt = attempt + 1 WHERE id = ?1")
+                    .bind(id_bytes)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(map_err)?;
             }
 
             tx.commit().await.map_err(map_err)?;
@@ -849,7 +844,9 @@ mod sqlite_tests {
     }
 
     async fn connect() -> Option<SqliteOutbox> {
-        let ob = SqliteOutbox::connect("sqlite::memory:?cache=shared").await.ok()?;
+        let ob = SqliteOutbox::connect("sqlite::memory:?cache=shared")
+            .await
+            .ok()?;
         sqlx::query(SqliteOutbox::MIGRATION_SQL)
             .execute(&ob.pool_for_test())
             .await

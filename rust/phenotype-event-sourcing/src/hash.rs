@@ -192,4 +192,177 @@ mod tests {
     fn detect_gaps_empty() {
         assert_eq!(detect_gaps(&[]), None);
     }
+
+    // --- Property / invariant tests (table-driven) ---
+    //
+    // These tests encode the semantic invariants of the hash chain without
+    // requiring an external property-testing crate. Each table row is an
+    // independent scenario designed to exercise a distinct corner-case.
+
+    /// Invariant: `compute_hash` output is exactly 64 hex characters (32-byte SHA-256).
+    #[test]
+    fn hash_output_is_always_64_hex_chars() {
+        let zero_hash = "0".repeat(64);
+        let id = uuid::Uuid::nil();
+        let ts = DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+
+        let cases: &[(&str, &str, &str)] = &[
+            ("created", "{}", "user-a"),
+            ("updated", r#"{"k":"v"}"#, "user-b"),
+            ("deleted", "null", ""),
+            // Empty strings for event_type and actor are edge inputs
+            ("", "{}", ""),
+        ];
+
+        for (event_type, payload_str, actor) in cases {
+            let payload: serde_json::Value = serde_json::from_str(payload_str).unwrap();
+            let h = compute_hash(&id, ts, event_type, &payload, actor, &zero_hash).unwrap();
+            assert_eq!(
+                h.len(),
+                64,
+                "hash must be 64 hex chars for event_type={event_type:?}"
+            );
+            assert!(
+                h.chars().all(|c| c.is_ascii_hexdigit()),
+                "hash must be lowercase hex for event_type={event_type:?}"
+            );
+        }
+    }
+
+    /// Invariant: changing any single input field produces a different hash
+    /// (collision-resistance for each dimension individually).
+    #[test]
+    fn hash_changes_on_each_input_dimension() {
+        let base_id = uuid::Uuid::nil();
+        let base_ts = DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let base_payload = serde_json::json!({"x": 1});
+        let zero_hash = "0".repeat(64);
+
+        let base =
+            compute_hash(&base_id, base_ts, "evt", &base_payload, "actor", &zero_hash).unwrap();
+
+        // Changed UUID
+        let other_id = uuid::Uuid::from_u128(1);
+        let h = compute_hash(
+            &other_id,
+            base_ts,
+            "evt",
+            &base_payload,
+            "actor",
+            &zero_hash,
+        )
+        .unwrap();
+        assert_ne!(base, h, "hash must differ when UUID changes");
+
+        // Changed timestamp
+        let other_ts = DateTime::parse_from_rfc3339("2026-06-01T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let h = compute_hash(
+            &base_id,
+            other_ts,
+            "evt",
+            &base_payload,
+            "actor",
+            &zero_hash,
+        )
+        .unwrap();
+        assert_ne!(base, h, "hash must differ when timestamp changes");
+
+        // Changed event_type
+        let h = compute_hash(
+            &base_id,
+            base_ts,
+            "other",
+            &base_payload,
+            "actor",
+            &zero_hash,
+        )
+        .unwrap();
+        assert_ne!(base, h, "hash must differ when event_type changes");
+
+        // Changed payload
+        let other_payload = serde_json::json!({"x": 2});
+        let h = compute_hash(
+            &base_id,
+            base_ts,
+            "evt",
+            &other_payload,
+            "actor",
+            &zero_hash,
+        )
+        .unwrap();
+        assert_ne!(base, h, "hash must differ when payload changes");
+
+        // Changed actor
+        let h = compute_hash(&base_id, base_ts, "evt", &base_payload, "other", &zero_hash).unwrap();
+        assert_ne!(base, h, "hash must differ when actor changes");
+
+        // Changed prev_hash (simulate different predecessor)
+        let alt_prev = "a".repeat(64);
+        let h = compute_hash(&base_id, base_ts, "evt", &base_payload, "actor", &alt_prev).unwrap();
+        assert_ne!(base, h, "hash must differ when prev_hash changes");
+    }
+
+    /// Invariant: `verify_chain` detects a tampered link anywhere in a chain
+    /// of N events.
+    #[test]
+    fn verify_chain_detects_any_tampered_link() {
+        // Build a 5-event chain where `prev_hash` of event[i] is event[i-1]'s hash.
+        let zero_hash = "0".repeat(64);
+        let hashes = vec![
+            "aaaa".repeat(16),
+            "bbbb".repeat(16),
+            "cccc".repeat(16),
+            "dddd".repeat(16),
+            "eeee".repeat(16),
+        ];
+
+        // Correct chain: (hash, prev_hash)
+        let chain: Vec<(String, String)> = std::iter::once((hashes[0].clone(), zero_hash.clone()))
+            .chain(hashes.windows(2).map(|w| (w[1].clone(), w[0].clone())))
+            .collect();
+
+        assert!(
+            verify_chain(&chain).is_ok(),
+            "well-formed chain must verify cleanly"
+        );
+
+        // Tamper each link in turn and expect an error.
+        for tamper_idx in 1..chain.len() {
+            let mut tampered = chain.clone();
+            // Break the back-pointer of the entry at tamper_idx
+            tampered[tamper_idx].1 = "ffff".repeat(16);
+            assert!(
+                verify_chain(&tampered).is_err(),
+                "tampering link at index {tamper_idx} must be detected"
+            );
+        }
+    }
+
+    /// Invariant: `detect_gaps` finds the *first* missing sequence number in
+    /// out-of-order inputs.
+    #[test]
+    fn detect_gaps_table_driven() {
+        let cases: &[(&[i64], Option<i64>)] = &[
+            (&[1], None),
+            (&[1, 2, 3], None),
+            (&[3, 1, 2], None),       // unsorted input
+            (&[1, 3], Some(2)),       // gap at 2
+            (&[1, 2, 4, 5], Some(3)), // gap at 3
+            (&[2, 4], Some(3)),       // gap between non-1 start
+        ];
+
+        for (seqs, expected) in cases {
+            assert_eq!(
+                detect_gaps(seqs),
+                *expected,
+                "detect_gaps({seqs:?}) != {expected:?}"
+            );
+        }
+    }
 }

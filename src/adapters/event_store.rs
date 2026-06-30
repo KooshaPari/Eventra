@@ -13,7 +13,13 @@ use crate::domain::{Event, EventError, EventStore};
 /// `HashMap` key set or the `event_bus` subscriber registration table.
 pub const MAX_ID_LENGTH: usize = 256;
 
-/// In-memory event store adapter
+/// In-memory event store adapter.
+///
+/// **PoC / test-only.** This adapter stores events in process memory and
+/// loses all data on restart. It is intended for unit tests, PoC code, and
+/// local examples. For production use, choose a durable adapter backed by
+/// PostgreSQL or SQLite via the feature flags on `phenotype-event-bus`.
+#[doc(alias = "test-only")]
 pub struct InMemoryEventStore {
     events: RwLock<HashMap<String, Vec<Event>>>,
     all_events: RwLock<Vec<Event>>,
