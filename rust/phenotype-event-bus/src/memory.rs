@@ -38,12 +38,18 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + Clone + Debug + 'static> Ev
     type Event = T;
 
     async fn publish(&self, event: EventEnvelope<T>) -> Result<(), EventBusError> {
+        let subject = event.source.clone();
+        let span = tracing::info_span!(
+            "event_bus.publish",
+            subject = %subject,
+            event_id = %event.id,
+            correlation_id = %event.correlation_id.clone().unwrap_or_else(|| "none".to_string()),
+        );
+        let _guard = span.enter();
         let closed = *self.closed.read().await;
         if closed {
             return Err(EventBusError::Connection("Bus is closed".to_string()));
         }
-
-        let subject = event.source.clone();
 
         // Send to exact subject subscribers
         if let Some(subs) = self.subscribers.get(&subject) {
@@ -85,6 +91,13 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + Clone + Debug + 'static> Ev
         // Spawn handler task
         tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
+                let event_span = tracing::info_span!(
+                    "event_bus.handle",
+                    subject = %subject,
+                    event_id = %event.id,
+                    correlation_id = %event.correlation_id.clone().unwrap_or_else(|| "none".to_string()),
+                );
+                let _guard = event_span.enter();
                 if handler(event).is_err() {
                     break;
                 }

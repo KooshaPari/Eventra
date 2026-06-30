@@ -436,6 +436,247 @@ pub mod postgres {
     "#;
 }
 
+#[cfg(feature = "sqlite")]
+pub mod sqlite {
+    //! Sqlite-backed outbox.
+
+    use super::*;
+    use async_trait::async_trait;
+    use chrono::Utc;
+    use sqlx::Row;
+
+    /// SQLite-backed outbox. Cheap to clone (`SqlitePool` handle).
+    #[derive(Clone)]
+    pub struct SqliteOutbox {
+        pool: sqlx::SqlitePool,
+    }
+
+    impl std::fmt::Debug for SqliteOutbox {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("SqliteOutbox").finish_non_exhaustive()
+        }
+    }
+
+    impl SqliteOutbox {
+        /// Build a `SqliteOutbox` from a `sqlx::SqlitePool`.
+        pub fn new(pool: sqlx::SqlitePool) -> Self {
+            Self { pool }
+        }
+
+        /// Build a `SqliteOutbox` from a libsql/sqlite URL.
+        pub async fn connect(url: &str) -> Result<Self, OutboxError> {
+            let pool = sqlx::sqlite::SqlitePoolOptions::new()
+                .max_connections(1)
+                .acquire_timeout(std::time::Duration::from_secs(5))
+                .connect(url)
+                .await
+                .map_err(|e| OutboxError::Database(e.to_string()))?;
+            Ok(Self { pool })
+        }
+
+        /// Helper: run a closure inside a SQL transaction so aggregate write
+        /// and outbox enqueue can be atomic.
+        pub async fn transactional<F, Fut, T>(&self, f: F) -> Result<T, OutboxError>
+        where
+            F: for<'c> FnOnce(&'c mut sqlx::Transaction<'_, sqlx::Sqlite>) -> Fut,
+            Fut: std::future::Future<Output = Result<T, OutboxError>>,
+        {
+            let mut tx = self
+                .pool
+                .begin()
+                .await
+                .map_err(|e| OutboxError::Database(e.to_string()))?;
+            let out = f(&mut tx).await?;
+            tx.commit()
+                .await
+                .map_err(|e| OutboxError::Database(e.to_string()))?;
+            Ok(out)
+        }
+
+        /// Enqueue an entry inside the caller-provided transaction.
+        pub async fn enqueue_in_tx(
+            tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+            entry: OutboxEntry,
+        ) -> Result<(), OutboxError> {
+            let id_bytes = entry.id.to_bytes().to_vec();
+            let aggregate_id = entry.aggregate_id.as_str();
+            let envelope_json = serde_json::to_string(&entry.envelope)
+                .map_err(|e| OutboxError::Serde(e.to_string()))?;
+            let created_at_ms = entry.created_at.timestamp_millis();
+            sqlx::query(
+                r#"
+                INSERT INTO outbox
+                    (id, aggregate_id, envelope, created_at, published_at, attempt, last_error)
+                VALUES (?1, ?2, ?3, ?4, NULL, 0, NULL)
+                "#,
+            )
+            .bind(id_bytes)
+            .bind(aggregate_id)
+            .bind(envelope_json)
+            .bind(created_at_ms)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| OutboxError::Database(e.to_string()))?;
+            Ok(())
+        }
+    }
+
+    fn map_err(e: sqlx::Error) -> OutboxError {
+        OutboxError::Database(e.to_string())
+    }
+
+    fn parse_row(row: sqlx::sqlite::SqliteRow) -> Result<OutboxEntry, OutboxError> {
+        let id_bytes: Vec<u8> = row.try_get("id").map_err(map_err)?;
+        if id_bytes.len() != 16 {
+            return Err(OutboxError::Storage(format!(
+                "outbox.id must be 16 bytes, got {}",
+                id_bytes.len()
+            )));
+        }
+        let mut arr = [0u8; 16];
+        arr.copy_from_slice(&id_bytes);
+        let ulid = Ulid::from_bytes(arr);
+
+        let aggregate_id: String = row.try_get("aggregate_id").map_err(map_err)?;
+        let envelope_text: String = row.try_get("envelope").map_err(map_err)?;
+        let envelope: EventEnvelope<serde_json::Value> = serde_json::from_str(&envelope_text)
+            .map_err(|e| OutboxError::Serde(e.to_string()))?;
+        let created_at_ms: i64 = row.try_get("created_at").map_err(map_err)?;
+        let created_at = chrono::DateTime::<Utc>::from_timestamp_millis(created_at_ms)
+            .ok_or_else(|| OutboxError::Storage("invalid created_at timestamp".into()))?;
+        let published_at = row
+            .try_get::<Option<i64>, _>("published_at")
+            .map_err(map_err)?
+            .and_then(|v| chrono::DateTime::<Utc>::from_timestamp_millis(v));
+        let attempt: i64 = row.try_get("attempt").map_err(map_err)?;
+        let last_error: Option<String> = row.try_get("last_error").map_err(map_err)?;
+
+        Ok(OutboxEntry {
+            id: ulid,
+            aggregate_id,
+            envelope,
+            created_at,
+            published_at,
+            attempt: attempt.max(0) as u32,
+            last_error,
+        })
+    }
+
+    #[async_trait]
+    impl OutboxStore for SqliteOutbox {
+        async fn enqueue(&mut self, entry: OutboxEntry) -> Result<(), OutboxError> {
+            self.transactional(|tx| async move { Self::enqueue_in_tx(tx, entry).await }).await
+        }
+
+        async fn claim_batch(&mut self, limit: usize) -> Result<Vec<OutboxEntry>, OutboxError> {
+            let mut tx = self
+                .pool
+                .begin()
+                .await
+                .map_err(map_err)?;
+
+            let rows = sqlx::query(
+                r#"
+                SELECT id, aggregate_id, envelope, created_at,
+                       published_at, attempt, last_error
+                FROM outbox
+                WHERE published_at IS NULL
+                ORDER BY created_at ASC
+                LIMIT ?1
+                "#,
+            )
+            .bind(limit as i64)
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(map_err)?;
+
+            for row in &rows {
+                let id_bytes: Vec<u8> = row.try_get("id").map_err(map_err)?;
+                sqlx::query(
+                    "UPDATE outbox SET attempt = attempt + 1 WHERE id = ?1",
+                )
+                .bind(id_bytes)
+                .execute(&mut *tx)
+                .await
+                .map_err(map_err)?;
+            }
+
+            tx.commit().await.map_err(map_err)?;
+
+            let mut out = Vec::with_capacity(rows.len());
+            for row in rows {
+                out.push(parse_row(row)?);
+            }
+            Ok(out)
+        }
+
+        async fn mark_published(&mut self, id: Ulid) -> Result<(), OutboxError> {
+            let id_bytes = id.to_bytes().to_vec();
+            let res = sqlx::query(
+                r#"
+                UPDATE outbox
+                SET published_at = COALESCE(published_at, (strftime('%s','now') * 1000))
+                WHERE id = ?1
+                "#,
+            )
+            .bind(id_bytes)
+            .execute(&self.pool)
+            .await
+            .map_err(map_err)?;
+            if res.rows_affected() == 0 {
+                return Err(OutboxError::NotFound(id));
+            }
+            Ok(())
+        }
+
+        async fn record_failure(&mut self, id: Ulid, err: &str) -> Result<(), OutboxError> {
+            let id_bytes = id.to_bytes().to_vec();
+            let res = sqlx::query(
+                r#"
+                UPDATE outbox
+                SET attempt = attempt + 1, last_error = ?2
+                WHERE id = ?1
+                "#,
+            )
+            .bind(id_bytes)
+            .bind(err)
+            .execute(&self.pool)
+            .await
+            .map_err(map_err)?;
+            if res.rows_affected() == 0 {
+                return Err(OutboxError::NotFound(id));
+            }
+            Ok(())
+        }
+
+        async fn pending_count(&self) -> Result<u64, OutboxError> {
+            let row = sqlx::query("SELECT COUNT(*) AS c FROM outbox WHERE published_at IS NULL")
+                .fetch_one(&self.pool)
+                .await
+                .map_err(map_err)?;
+            let c: i64 = row.try_get("c").map_err(map_err)?;
+            Ok(c.max(0) as u64)
+        }
+    }
+
+    /// Migration helper (call from your `sqlx::migrate!` macro or
+    /// embed as `refinery`/`barrel` migration).
+    pub const MIGRATION_SQL: &str = r#"
+        CREATE TABLE IF NOT EXISTS outbox (
+            id            BLOB        PRIMARY KEY,
+            aggregate_id  TEXT        NOT NULL,
+            envelope      TEXT        NOT NULL,
+            created_at    INTEGER     NOT NULL,
+            published_at  INTEGER,
+            attempt       INT         NOT NULL DEFAULT 0,
+            last_error    TEXT
+        );
+        CREATE INDEX IF NOT EXISTS outbox_unpublished_idx
+            ON outbox (created_at)
+            WHERE published_at IS NULL;
+    "#;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -594,6 +835,96 @@ mod postgres_tests {
         let bogus = Ulid::new();
         let err = ob.mark_published(bogus).await.unwrap_err();
         assert!(matches!(err, OutboxError::NotFound(id) if id == bogus));
+    }
+}
+
+#[cfg(all(test, feature = "sqlite"))]
+mod sqlite_tests {
+    use super::sqlite::SqliteOutbox;
+    use super::*;
+    use serde_json::json;
+
+    fn envelope() -> EventEnvelope<serde_json::Value> {
+        EventEnvelope::new("test-source", json!({"k": "v"}))
+    }
+
+    async fn connect() -> Option<SqliteOutbox> {
+        let ob = SqliteOutbox::connect("sqlite::memory:?cache=shared").await.ok()?;
+        sqlx::query(SqliteOutbox::MIGRATION_SQL)
+            .execute(&ob.pool_for_test())
+            .await
+            .ok()?;
+        Some(ob)
+    }
+
+    #[tokio::test]
+    async fn sqlite_enqueue_claim_mark_published() {
+        let Some(mut ob) = connect().await else {
+            eprintln!("skip: sqlite connection unavailable");
+            return;
+        };
+        let e = OutboxEntry::new("agg-1", envelope());
+        let id = e.id;
+        ob.enqueue(e).await.unwrap();
+        let claimed = ob.claim_batch(10).await.unwrap();
+        assert_eq!(claimed.len(), 1);
+        assert_eq!(claimed[0].id, id);
+        assert_eq!(claimed[0].attempt, 1);
+        ob.mark_published(id).await.unwrap();
+        ob.mark_published(id).await.unwrap(); // idempotent
+        assert_eq!(ob.pending_count().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn sqlite_record_failure_increments_attempt() {
+        let Some(mut ob) = connect().await else {
+            eprintln!("skip: sqlite connection unavailable");
+            return;
+        };
+        let e = OutboxEntry::new("agg-2", envelope());
+        let id = e.id;
+        ob.enqueue(e).await.unwrap();
+        ob.record_failure(id, "boom").await.unwrap();
+        let claimed = ob.claim_batch(10).await.unwrap();
+        assert_eq!(claimed[0].attempt, 2);
+        assert_eq!(claimed[0].last_error.as_deref(), Some("boom"));
+    }
+
+    #[tokio::test]
+    async fn sqlite_claim_batch_respects_limit_and_order() {
+        let Some(mut ob) = connect().await else {
+            eprintln!("skip: sqlite connection unavailable");
+            return;
+        };
+        for i in 0..5 {
+            ob.enqueue(OutboxEntry::new(format!("agg-{i}"), envelope()))
+                .await
+                .unwrap();
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+        let claimed = ob.claim_batch(3).await.unwrap();
+        assert_eq!(claimed.len(), 3);
+        for w in claimed.windows(2) {
+            assert!(w[0].created_at <= w[1].created_at);
+        }
+    }
+
+    #[tokio::test]
+    async fn sqlite_mark_published_unknown_id_returns_not_found() {
+        let Some(mut ob) = connect().await else {
+            eprintln!("skip: sqlite connection unavailable");
+            return;
+        };
+        let bogus = Ulid::new();
+        let err = ob.mark_published(bogus).await.unwrap_err();
+        assert!(matches!(err, OutboxError::NotFound(id) if id == bogus));
+    }
+}
+
+#[cfg(all(test, feature = "sqlite"))]
+impl super::sqlite::SqliteOutbox {
+    pub fn pool_for_test(&self) -> sqlx::SqlitePool {
+        self.pool.clone()
     }
 }
 

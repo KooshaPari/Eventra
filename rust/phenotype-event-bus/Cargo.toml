@@ -25,20 +25,13 @@ tracing = { workspace = true }
 default = []
 # Postgres-backed OutboxStore (EVE-SOTA-002). Adds sqlx + tokio-postgres.
 postgres = ["dep:sqlx"]
-# SQLite-backed OutboxStore (EVE-SOTA-004) — placeholder.
-#
-# The `sqlite` feature was reserved for a SQLite adapter, but the
-# adapter that shipped referenced undefined symbols and an outdated
-# trait surface, so it was removed in commit-eventra-p3-remediation
-# to keep the workspace buildable. PostgresOutbox is the supported
-# database adapter today. A future SQLite adapter should target sqlx
-# (matching the Postgres impl) and re-enable this feature flag.
-sqlite = []
+# SQLite-backed OutboxStore (EVE-SOTA-004).
+sqlite = ["dep:sqlx"]
 
 [dependencies.sqlx]
 version = "0.8"
 default-features = false
-features = ["runtime-tokio-rustls", "macros", "chrono", "json"]
+features = ["runtime-tokio-rustls", "macros", "chrono", "json", "sqlite"]
 optional = true
 
 [dev-dependencies]
