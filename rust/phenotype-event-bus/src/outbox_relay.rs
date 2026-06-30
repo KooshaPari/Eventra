@@ -36,6 +36,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, Notify};
 use tokio::time::{sleep, timeout};
+use tracing::Instrument;
 
 /// User-provided publisher. Receives the deserialized envelope and
 /// returns `Ok(())` on success or `Err(String)` (which becomes a
@@ -143,8 +144,16 @@ where
         // higher-level supervisor; the relay's worker fan-out is
         // implemented at the call site if desired).
         let batch = {
+            let claim_span = tracing::info_span!(
+                "outbox.claim_batch",
+                outbox_id_count = 0,
+                outbox_batch_size = config.batch_size
+            );
             let mut store = store.lock().await;
-            store.claim_batch(config.batch_size as usize).await?
+            store
+                .claim_batch(config.batch_size as usize)
+                .instrument(claim_span)
+                .await?
         };
         if batch.is_empty() {
             stats.empty_polls += 1;
@@ -156,6 +165,20 @@ where
         }
 
         for entry in batch {
+            let entry_span = tracing::info_span!(
+                "outbox.relay_entry",
+                event_id = %entry.id,
+                attempt = entry.attempt,
+                correlation_id = %entry
+                    .envelope
+                    .correlation_id
+                    .clone()
+                    .unwrap_or_else(|| "none".to_string()),
+                source = %entry.envelope.source,
+                aggregate_id = %entry.aggregate_id,
+            );
+            let _entry_guard = entry_span.enter();
+
             // Per-entry: re-check shutdown to exit fast on large batches.
             if timeout(Duration::from_millis(0), shutdown.notified())
                 .await

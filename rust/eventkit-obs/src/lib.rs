@@ -15,8 +15,12 @@ pub mod metrics;
 
 #[cfg(feature = "http-health")]
 pub mod http_health;
+#[cfg(feature = "otel")]
+pub mod otel;
 
 pub use correlation::{correlation_id, ensure_correlation_id, set_correlation_id, CORRELATION_FIELD};
 pub use health::{HealthReport, HealthStatus, Probe, ReadinessReport};
 pub use logging::{init_logging, LogFormat, LogLevel};
 pub use metrics::{CounterRegistry, MetricsHook, NoopMetrics};
+#[cfg(feature = "otel")]
+pub use otel::{install_otel, OtlpConfig, OtlpError, OtlpHandle, OtlpLayer, with_correlation_span};
