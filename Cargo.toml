@@ -27,7 +27,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 tokio = { version = "1.0", features = ["full"] }
 ulid = { version = "1", features = ["serde"] }
 dashmap = "6"
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 # The upstream `KooshaPari/phenotype-types` repo is no longer accessible (HTTP 404),
 # so `phenotype-error-core` is now vendored as a workspace member. See
