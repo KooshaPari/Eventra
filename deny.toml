@@ -7,7 +7,10 @@ targets = []
 [advisories]
 # Deny all known security vulnerabilities
 version = 2
-ignore = []
+# RUSTSEC-2026-0124: Ignored due to cargo-deny 0.18.2 not supporting CVSS 4.0
+# format in the advisory database. This advisory is unrelated to our dependencies.
+# Upgrade cargo-deny action to > v2.0.11 to resolve permanently.
+ignore = ["RUSTSEC-2026-0124"]
 
 [licenses]
 version = 2
