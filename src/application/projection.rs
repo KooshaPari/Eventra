@@ -62,7 +62,7 @@ impl ProjectionRunner {
         let mut state = self.state.write();
 
         for (idx, event) in events.iter().enumerate() {
-            for (_, projection) in projections.iter_mut() {
+            for projection in projections.values_mut() {
                 if projection.handles().contains(&event.metadata.event_type) {
                     if let Some(state) = state.get_mut(projection.name()) {
                         let position = idx as u64;
