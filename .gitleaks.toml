@@ -1,2 +1,15 @@
 [extend]
 useDefault = true
+
+# Allowlist historical false-positives from gitleaks scan of full git history.
+# These files no longer exist in main but remain in history; the SARIF
+# matches are placeholder/example API keys, not real secrets.
+[allowlist]
+  description = "Historical audit reports and docs containing example API key placeholders"
+  paths = [
+    '''findings/.*\.md$''',
+    '''WARP\.md$''',
+    '''CLAUDE\.md$''',
+    '''cmd/bifrost/cli/config_test\.go$''',
+    '''SPEC\.md$''',
+  ]
