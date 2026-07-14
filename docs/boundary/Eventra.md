@@ -8,9 +8,9 @@ do-not-edit-locally: regenerate via scripts/propagate-intent-to-repos.py
 ---
 repo: "Eventra"
 role: non-canonical
-status: active
-archived: false
-last_boundary_review: 2026-06-21
+status: archived
+archived: true
+last_boundary_review: 2026-07-13
 review_cadence: 30d
 in_scope:
   - "<to be filled>"

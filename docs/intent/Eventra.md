@@ -9,9 +9,9 @@ do-not-edit-locally: regenerate via scripts/propagate-intent-to-repos.py
 repo: "Eventra"
 aliases: []
 role: non-canonical
-status: active
-archived: false
-last_verified: 2026-06-21
+status: archived
+archived: true
+last_verified: 2026-07-13
 bound_prompts: 1
 bound_plans: 0
 bound_responses: 0
