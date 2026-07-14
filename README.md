@@ -1,5 +1,12 @@
 # Eventra
 
+> **Archived.** Eventra is no longer maintained. The canonical reusable runtime
+> event bus, including the OpenTelemetry export and SQLite outbox migration from
+> Eventra #65, now lives in
+> [phenoEvents](https://github.com/KooshaPari/phenoEvents), merged in
+> [phenoEvents #30](https://github.com/KooshaPari/phenoEvents/pull/30).
+> Do not start new work here.
+
 Eventra is a Rust workspace for event-driven systems with CQRS/event-sourcing building blocks, a framework-local in-memory event bus, and transactional outbox support.
 
 ## Workspace layout
