@@ -55,7 +55,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -71,7 +71,7 @@ jobs:
           cargo cyclonedx --format json --override-filename ${{ github.repository }}.sbom.json || cargo cyclonedx --format json
         continue-on-error: true
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: sbom
           path: ${{ github.workspace }}/*.cdx.json
