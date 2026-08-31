@@ -1,16 +1,14 @@
 //! Command Handler
 
-use async_trait::async_trait;
-
 use crate::domain::{Aggregate, Command, EventError, EventStore};
 
 /// Command handler service
-pub struct CommandHandlerService<S: EventStore, A: Aggregate> {
+pub struct CommandHandlerService<A: Aggregate> {
     event_store: Box<dyn EventStore>,
     aggregate_factory: Box<dyn AggregateFactory<A>>,
 }
 
-impl<S: EventStore, A: Aggregate> CommandHandlerService<S, A> {
+impl<A: Aggregate> CommandHandlerService<A> {
     pub fn new(
         event_store: Box<dyn EventStore>,
         aggregate_factory: Box<dyn AggregateFactory<A>>,

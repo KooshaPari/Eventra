@@ -42,34 +42,15 @@ impl EventBus for InMemoryEventBus {
     fn subscribe(&self, handler: Box<dyn EventHandler>) -> Result<(), EventError> {
         let event_types = handler.event_types();
         let mut subscribers = self.subscribers.write();
+        // Share a single handler across every subscribed event type by cloning
+        // the Arc, avoiding the need to clone the trait object itself.
+        let shared = Arc::new(handler);
 
         for event_type in event_types {
             let entry = subscribers.entry(event_type).or_insert_with(Vec::new);
-            entry.push(Arc::new(handler.clone_boxed()));
+            entry.push(shared.clone());
         }
 
         Ok(())
-    }
-}
-
-impl Clone for Box<dyn EventHandler> {
-    fn clone(&self) -> Self {
-        self.clone_boxed()
-    }
-}
-
-pub trait EventHandlerClone {
-    fn clone_boxed(&self) -> Box<dyn EventHandler>;
-}
-
-impl<T: EventHandler + Clone> EventHandlerClone for T {
-    fn clone_boxed(&self) -> Box<dyn EventHandler> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<dyn EventHandler> {
-    fn clone(&self) -> Box<dyn EventHandler> {
-        self.clone_boxed()
     }
 }
