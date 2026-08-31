@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 use parking_lot::RwLock;
 use chrono::{DateTime, Utc};
-use async_trait::async_trait;
 
 use crate::domain::{Event, EventStore, EventError};
 
