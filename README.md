@@ -7,6 +7,8 @@
 > [phenoEvents #30](https://github.com/KooshaPari/phenoEvents/pull/30).
 > Do not start new work here.
 
+[![AI slop inside](https://sladge.net/badge.svg)](https://sladge.net) [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/KooshaPari/Eventra/total)](https://github.com/KooshaPari/Eventra/releases)
+
 Eventra is a Rust workspace for event-driven systems with CQRS/event-sourcing building blocks, a framework-local in-memory event bus, and transactional outbox support.
 
 ## Workspace layout
