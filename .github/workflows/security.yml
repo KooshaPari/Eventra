@@ -1,0 +1,90 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly Monday 09:00 PDT cron (ADR-042 cadence)
+    - cron: '0 16 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+  id-token: write   # required for SLSA provenance
+
+jobs:
+  codeql:
+    name: CodeQL (rust)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: rust
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:rust"
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: rustsec/audit-check@858dc40f52ca2b8570b7a997c1c4e35c6fc9a432
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  gitleaks:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  sbom:
+    name: SBOM generation (CycloneDX)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Generate SBOM (cargo-cyclonedx)
+        run: |
+          cargo install --locked cargo-cyclonedx || true
+          cargo cyclonedx --format json --override-filename ${{ github.repository }}.sbom.json || cargo cyclonedx --format json
+        continue-on-error: true
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: ${{ github.workspace }}/*.cdx.json
+        if: always()
+
+  # NOTE: SLSA provenance generation was previously wired as a `steps:`-level
+  # `uses:` call to a reusable workflow (generator_generic_slsa3.yml). Reusable
+  # workflow calls are only valid at the job level (`jobs.<id>.uses:`) and
+  # cannot be combined with `runs-on`/`steps` — that invalid shape caused the
+  # entire security.yml workflow to fail to parse (0 jobs scheduled, "This run
+  # likely failed because of a workflow file issue"). This repo doesn't
+  # currently produce build artifact digests to attest, so provenance
+  # generation is disabled here rather than reintroduced with contrived stub
+  # digests. Tracked for follow-up: wire a job-level
+  # `uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0`
+  # call once a real release artifact + digest exists.

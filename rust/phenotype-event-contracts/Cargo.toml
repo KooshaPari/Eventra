@@ -1,0 +1,19 @@
+[package]
+name = "phenotype-event-contracts"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Event and event-bus contract traits for the Phenotype ecosystem (Eventra terminal owner)"
+repository = "https://github.com/KooshaPari/Eventra"
+rust-version = "1.75"
+
+[dependencies]
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+derive_more = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

@@ -1,0 +1,61 @@
+<!--
+propagated-from: KooshaPari/phenotype-registry @ chore/l7-010-taxonomy-rerender
+date: 2026-06-21
+source-commit: 2026-06-21-rerender
+do-not-edit-locally: regenerate via scripts/propagate-intent-to-repos.py
+                     or update in the source-of-truth registry repo
+-->
+---
+repo: "Eventra"
+aliases: []
+role: non-canonical
+status: archived
+archived: true
+last_verified: 2026-07-13
+bound_prompts: 1
+bound_plans: 0
+bound_responses: 0
+device: macbook
+---
+
+# Intent — Eventra
+
+## Intent Statement
+
+<To be filled in by hand from the most recent binding prompt. This repo is bound to 1 prompts, 0 plans, and 0 agent responses captured between 2025-08 and 2026-06-17.>
+
+
+## Bound Prompts
+
+| Date | Source | File | Tag |
+| ---- | ------ | ---- | --- |
+| ? | claude-code | `docs/curated-prompts/claude-code/unknown/396171e200d251e7.md` | implementation |
+
+## Bound Plans
+
+| Date | Source | File | Status |
+| ---- | ------ | ---- | ------ |
+
+## Bound Responses (specs, ideas, plans from agents)
+
+| Date | Source | File | Kind |
+| ---- | ------ | ---- | ---- |
+
+## Boundary
+
+See: [`docs/boundary/Eventra.md`](../boundary/Eventra.md)
+
+## Ecosystem Role
+
+<See `ECOSYSTEM_MAP.md` for the canonical ecosystem role.>
+
+## Open Questions
+
+- <To be filled from the latest prompt on this repo.>
+
+## Change Log
+
+| Date | Change | Worklog |
+| ---- | ------ | ------- |
+| 2026-06-21 | L7-010: role taxonomy refresh (12-role, from ECOSYSTEM_MAP.md §1) | `worklogs/L7-010-taxonomy-rerender-2026-06-21.json` |
+| 2026-06-17 | Initial binding (L7-001 sweep) | `worklogs/L7-001-intent-boundary-curation-2026-06-17.json` |

@@ -78,9 +78,16 @@ pub trait EventBus: Send + Sync {
 }
 
 /// Event handler trait
-pub trait EventHandler: Send + Sync {
+pub trait EventHandler: Send + Sync + EventHandlerClone {
     fn handle(&self, event: &Event) -> Result<(), EventError>;
     fn event_types(&self) -> Vec<String>;
+}
+
+/// Cloning helper for `EventHandler` trait objects. Supertrait of
+/// [`EventHandler`] so that `dyn EventHandler` values can be cloned
+/// through a single virtual call.
+pub trait EventHandlerClone {
+    fn clone_boxed(&self) -> Box<dyn EventHandler>;
 }
 
 /// Event store trait - secondary port
@@ -88,4 +95,8 @@ pub trait EventStore: Send + Sync {
     fn append(&self, event: &Event) -> Result<(), EventError>;
     fn get_events(&self, aggregate_id: &str) -> Result<Vec<Event>, EventError>;
     fn get_events_since(&self, since: DateTime<Utc>) -> Result<Vec<Event>, EventError>;
+    /// Return every stored event in append order. Used by projection replay
+    /// so that [`crate::application::projection::ProjectionRunner::run`] can
+    /// rebuild projection state from offset 0 (or from a saved position).
+    fn get_all_events(&self) -> Result<Vec<Event>, EventError>;
 }
