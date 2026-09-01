@@ -88,6 +88,8 @@ impl EventBus for InMemoryEventBus {
         let event_types = handler.event_types();
         let handler = Arc::from(handler);
         let mut subscribers = self.subscribers.write();
+        // Share a single handler across every subscribed event type by cloning
+        // the Arc, avoiding the need to clone the trait object itself.
 
         for event_type in &event_types {
             let entry = subscribers.entry(event_type.clone()).or_default();
