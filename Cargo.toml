@@ -6,6 +6,7 @@ members = [
     "rust/phenotype-event-bus",
     "rust/phenotype-event-sourcing",
     "rust/phenotype-error-core",
+    "rust/eventkit-obs",
 ]
 
 [workspace.package]

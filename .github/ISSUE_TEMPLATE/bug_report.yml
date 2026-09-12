@@ -1,0 +1,38 @@
+name: Bug Report
+description: Report a bug or defect in Eventra
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the sections below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: "What happened? Please provide a clear description."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: "How can we reproduce this issue?"
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Eventra Version
+      description: "Which version of Eventra are you using?"
+      placeholder: "e.g. 1.0.0"
+    validations:
+      required: false
