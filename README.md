@@ -1,51 +1,12 @@
-# eventkit - Event-Driven Architecture Framework
+# Tombstoned
 
-CQRS and Event Sourcing with EventStore and projection support.
+> **This repo is tombstoned. Delete when ready.**
 
-## Features
+## Absorption Record
 
-- **Event Sourcing**: Store events, not state
-- **CQRS**: Separate read/write models
-- **Event Store**: Append-only event storage
-- **Projections**: Build read models from events
-- **Snapshots**: Optimize state reconstruction
-- **Upcasting**: Handle event schema evolution
+This repository has been **absorbed into [zz-HexaKit](https://github.com/KooshaPari/zz-HexaKit) + [phenotype-registry](https://github.com/phenotype-registry)**.
 
-## Architecture
+Core functionality migrated to zz-HexaKit; registry metadata stored in phenotype-registry.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      HEXAGONAL ARCHITECTURE                  │
-├─────────────────────────────────────────────────────────────┤
-│  Domain Layer                                                │
-│  ├── Event (entity)                                         │
-│  ├── Aggregate (entity)                                     │
-│  ├── Command (value object)                                 │
-│  └── EventStore trait (port)                               │
-├─────────────────────────────────────────────────────────────┤
-│  Application Layer                                           │
-│  ├── CommandHandler (use case)                             │
-│  ├── EventBus (use case)                                   │
-│  └── ProjectionManager (use case)                          │
-├─────────────────────────────────────────────────────────────┤
-│  Adapters                                                    │
-│  ├── InMemoryEventStore, PostgresEventStore                  │
-│  ├── KafkaEventBus, RabbitMQEventBus                        │
-│  └── ProjectionRunner                                       │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Usage
-
-```rust
-use eventkit::{Aggregate, Event, Command};
-
-let aggregate = AccountAggregate::new("acc-1");
-aggregate.execute(Command::Deposit { amount: 100.0 })?;
-
-let events = aggregate.uncommitted_events();
-```
-
-## License
-
-MIT OR Apache-2.0
+---
+*This repository is preserved as a historical record only. Do not open new work here.*
